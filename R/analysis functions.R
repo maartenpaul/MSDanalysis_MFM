@@ -81,7 +81,7 @@ msd_analyze_data_mosaic <- function(directory,condition_list,framerate,n,fitzero
   save(track_stats_all,file=file.path(directory,paste("track_stats_all_",extension,".Rdata")))
 }
 
-msd_analyze_data_mosaic_mask <- function(directory,condition_list,framerate,n,fitzero,min_length,pixelsize,fitMSD,offset,max_tracks,track_file_name="tracks.simple.filtered.txt",extension="",dim){
+msd_analyze_data_mosaic_mask <- function(directory,condition_list,framerate,n,fitzero,min_length,pixelsize,fitMSD,offset,max_tracks,track_file_name="tracks.simple.filtered.txt",extension="",dim,groundtruth=FALSE){
   segments_all <- list()
   msd_fit_all <- list()
   track_stats_all <- list()
@@ -90,6 +90,7 @@ msd_analyze_data_mosaic_mask <- function(directory,condition_list,framerate,n,fi
     segments <- list()
     dir <- file.path(directory,condition_list[i])
     filelist <- list.files(dir,full.names = T,recursive = F,pattern = "^Traj_.*.\\.csv$")
+    filelist <- filelist[-grep(filelist,pattern = "^.*transformed.*$")]
     total <- length(filelist)
     # create progress bar
     for(j in 1:total){
@@ -102,6 +103,16 @@ msd_analyze_data_mosaic_mask <- function(directory,condition_list,framerate,n,fi
                                         #3,4,5,2,6,7,8,9,10,11,12)]
       tracks_simple$frame <- tracks_simple$frame
       segments[[j]] <- data.frame(SEGMENT_STAT(tracks_simple),"cellID"=basename(filelist[j]))
+      if(groundtruth){
+        filelist_gt <- list.files(dir,full.names = T,recursive = F,pattern = paste0("^Traj_transformed.*.",basename(filelist[j])))
+        cat(paste0("number groundtruths found:", k))
+        for(k in 1:length(filelist_gt)){
+          tracks_simple_gt <- read_csv(filelist_gt[k])
+          names(tracks_simple_gt) <- c("track","X","Y","Z","time","frame","step_x","step_y","step_z","inMask")
+          segments[[j]][[paste0("inMask_gt",k)]] <- tracks_simple_gt$inMask
+        }
+
+      }
     }
     track_msd <- TRACK_MSD(segments,n = n,framerate=framerate,truncate = FALSE,pxsize = pixelsize,dim=dim)
     save(track_msd,file=file.path(dir,"track_msd.Rdata"))
@@ -110,8 +121,22 @@ msd_analyze_data_mosaic_mask <- function(directory,condition_list,framerate,n,fi
       tracks <-  TRACK_MSD_fit(track_msd,n = n,fitzero = fitzero,framerate=framerate,pxsize = pixelsize,offset=offset,dim=dim)
       for (k in 1:length(tracks)){
         tracks[[k]]$inMask = FALSE
+        for(l in 1:length(filelist_gt)){
+          tracks[[k]][[paste0("inMask_gt",l)]] = FALSE
+        }
+
+
         for(l in 1:length(tracks[[k]]$track)){
           tracks[[k]]$inMask[l] <- any(segments[[k]]$inMask[segments[[k]]$track==tracks[[k]]$track[l]]==1)
+        }
+        if(groundtruth){
+          for(l in 1:length(filelist_gt)){
+
+            for(m in 1:length(tracks[[k]]$track)){
+              tracks[[k]][[paste0("inMask_gt",l)]][m] <- any(segments[[k]][[paste0("inMask_gt",l)]][segments[[k]]$track==tracks[[k]]$track[m]]==1)
+            }
+        }
+        }
         }
       }
 
@@ -120,7 +145,7 @@ msd_analyze_data_mosaic_mask <- function(directory,condition_list,framerate,n,fi
      # stats <- TRACK_STAT(x=segments)
       #save(stats,file=file.path(dir,"track_stats.Rdata"))
 
-    }
+
     segments_all[[basename(dir)]] <- data.frame(ldply(segments),"condition"=basename(dir))
     msd_fit_all[[basename(dir)]] <- data.frame(ldply(tracks),"condition"=basename(dir))
     #track_stats_all[[basename(dir)]] <- data.frame(ldply(stats),"condition"=basename(dir))
