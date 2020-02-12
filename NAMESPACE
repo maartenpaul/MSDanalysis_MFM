@@ -1,0 +1,25 @@
+
+S3method(TRACK_MSD, default)
+S3method(TRACK_MSD, data.frame)
+S3method(TRACK_MSD, list)
+
+S3method(TRACK_MSD_fit, default)
+S3method(TRACK_MSD_fit, data.frame)
+S3method(TRACK_MSD_fit, list)
+
+
+S3method(TRACK_STAT, default)
+S3method(TRACK_STAT, data.frame)
+S3method(TRACK_STAT, list)
+
+S3method(SEGMENT_STAT, default)
+S3method(SEGMENT_STAT, data.frame)
+S3method(SEGMENT_STAT, list)
+
+
+
+import(plyr,minpack.lm,stats,ggplot2,reshape2,grid,ggthemes,scales)
+
+export(TRACK_MSD,TRACK_MSD_fit,TRACK_STAT,SEGMENT_STAT,msd_analyze_data,msd_histogram,merge_dataset)
+
+

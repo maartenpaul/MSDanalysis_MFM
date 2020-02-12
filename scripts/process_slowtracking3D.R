@@ -159,8 +159,6 @@ lines(log10(data$time[data$tl==3.05]), log10(py$model[data$tl==3.05]), col = 4, 
 
 
 
-
-
 plot(data$time,data$density, main = "data",col="black")
 
 
