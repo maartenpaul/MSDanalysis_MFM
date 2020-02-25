@@ -3,8 +3,14 @@ library(plyr)
 library(lattice)
 library(stats)
 library(MSDtracking)
+library(ggplot2)#required packages
+library(plyr)
+library(lattice)
+library(stats)
+library(MSDtracking)
 library(ggplot2)
 library(ggpol)
+library(doParallel)
 
 #input variables
 framerate <- 1/52 #1/200 #1/ms
@@ -20,17 +26,20 @@ max_tracks <- 500 #maximum number of tracks per frame else exclude tracks from d
 dim <- 2 #number of dimensions of tracking
 
 directory <- "D:/Maarten/variation check/"
+directory <- "/media/DATA/data/"
 
 condition_list <- list.dirs(directory,full.names = F,recursive = F)
-condition_list <- condition_list[2]
+condition_list <- condition_list[c(1,2)]
 
 
-msd_analyze_data_mosaic_mask(directory,condition_list,framerate,n,fitzero,min_length,pixelsize,fitMSD,offset,max_tracks,dim=dim,groundtruth=TRUE)
+msd_analyze_data_mosaic_mask_parallel(directory,condition_list,framerate,n,fitzero,min_length,pixelsize,fitMSD,offset,max_tracks,dim=dim,groundtruth=TRUE)
 
 
-load(file.path(directory,"msd_fit_all_  .Rdata"))
+
+
+load(file.path(directory,"msd_fit_all.Rdata"))
 #load(file.path(directory,"track_stats_all.Rdata"))
-load(file.path(directory,"segments_all_  .Rdata"))
+load(file.path(directory,"segments_all.Rdata"))
 
 #msd_histogram(msd_fit_all,directory,threshold = 0.05)
 
@@ -47,9 +56,13 @@ scale_colour_Publication <- function(...){
 
 }
 
-ggplot(data = msd_fit_all$var,aes(x=D,y=..density..,color=inMask,fill=inMask)) +
+p1 <- ggplot(data = ldply(msd_fit_all),aes(x=D,y=..density..,color=inMask,fill=inMask)) +
   geom_density(position="identity",alpha=0.5,adjust = 1) +  geom_histogram(position="identity",alpha=0.5)+
-  scale_y_continuous(limits = c(0,0.8),expand = c(0, 0))+  scale_x_log10(limits=c(0.00005,2))+ scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=25)
+  scale_y_continuous(limits = c(0,1),expand = c(0, 0))+  scale_x_log10(limits=c(0.00005,2))+ scale_colour_Publication()+scale_fill_Publication()+facet_wrap(.~condition)
+
++theme_Publication(base_size=25)
+
+save(p1,file = file.path(directory,"all_histograms.pdf"))
 
 ggplot(data = msd_fit_all$var,aes(x=D,y=..density..,color=inMask_gt1,fill=inMask_gt1)) +
   geom_density(position="identity",alpha=0.5,adjust = 1) +  geom_histogram(position="identity",alpha=0.5)+
@@ -59,15 +72,28 @@ ggplot(data = msd_fit_all$var,aes(x=D,y=..density..)) +
   geom_density(position="identity",alpha=0.5,adjust = 1) +  geom_histogram(position="identity",alpha=0.5)+
   scale_y_continuous(limits = c(0,0.8),expand = c(0, 0))+  scale_x_log10(limits=c(0.00005,2))+ scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=25)
 
+p1 <- 
 
+
+msd_fit_all <- llply(msd_fit_all,function(x){
+  x$cellID <- x$.id
+  return(x)
+})
+msd_histogram(msd_fit_all[c(8,5,7,4,2,6,3,1)],directory = directory,merge_var = "cellID",threshold = 0.05)
+
+filter <- llply(msd_fit_all[c(6,4,2,5,3,1)],function(x) return(x[x$inMask==T]))
+
+msd_histogram(llply(msd_fit_all[c(6,4,2,5,3,1)],function(x) return(x[x$inMask==F,])),directory = directory,merge_var = "cellID",threshold = 0.05)
 
 
 #angle
+library(reticulate)
+
 ML_load()
 
 
 
-segments_all[6] <- llply(segments_all[6],function(x) {ddply(x,.variables = c("cellID","track"),function(x){
+segments_all <- llply(segments_all,function(x) {ddply(x,.variables = c("cellID","track"),function(x){
   if(nrow(x)>5){
     if(any(x$inMask==TRUE)){
       x$trackInMask <-TRUE
@@ -80,21 +106,10 @@ segments_all[6] <- llply(segments_all[6],function(x) {ddply(x,.variables = c("ce
 })})
 
 
-segments_all[6] <- llply(segments_all[6],function(x) {ddply(x,.variables = c("cellID","track"),function(x){
-  if(nrow(x)>5){
-    if(any(x$inMask==TRUE)){
-      x$trackInMask <-TRUE
-    } else {
-      x$trackInMask <-FALSE
-
-    }
-    return(x)
-  }
-})})
 
 #ML_segment_tracks(subset(segments_all$`dCTD HU`,cellID=="Traj_190316exp3_53bp1_GFP_B2dCTDA2_HU_50ms_100_f488int_0001__Ch1_preprocessed_tracks_mask.csv"))
 
-segments_all[c(2,4)] <- llply(segments_all[c(2,4)],function(x){
+segments_all <- llply(segments_all,function(x){
   ML_segment_tracks(x,directory=directory)
 }
 )

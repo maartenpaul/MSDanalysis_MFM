@@ -20,6 +20,8 @@ max_tracks <- 500 #maximum number of tracks per frame else exclude tracks from d
 dim <- 2 #number of dimensions of tracking
 
 directory <- "D:/OneDrive/Data2/slow_track/"
+directory <- "/media/DATA/slow_track/"
+
 condition_list <- list.dirs(directory,full.names = F,recursive = F)
 #condition_list <- condition_list[c(1,2)]
 
@@ -54,6 +56,7 @@ for (i in 1:length(condition_list)){
 
 #save data to the folder
 save(segments_all,file=file.path(directory,"segments_all.Rdata"))
+write_delim(ldply(segments_all),path = file.path(directory,"segments_all.txt"))
 load(file=file.path(directory,"segments_all.Rdata"))
 head(segments_all$WT_200)
 
@@ -87,7 +90,8 @@ stats$dCTD_1000 <- stats$dCTD_1000[stats$dCTD_1000$length>2.0,]
 stats$dCTD_3000$length <- stats$dCTD_3000$TrackN*3.05
 stats$dCTD_3000 <- stats$dCTD_3000[stats$dCTD_3000$length>6.0,]
 
-
+save(stats,file=file.path(directory,"slow_track_stats.Rdata"))
+write_delim(ldply(stats),path = file.path(directory,"slow_track_stats.txt"))
 
 x50 <- hist(subset(stats$WT_50,inMask==TRUE)$length,breaks=seq(0,100,0.05),col = "black")
 x200 <- hist(subset(stats$dDBD_200,inMask==TRUE)$length,breaks=seq(0,100,0.05),add=TRUE,col = "red")

@@ -89,7 +89,7 @@ msd_analyze_data_mosaic_mask <- function(directory,condition_list,framerate,n,fi
   for (i in 1:length(condition_list)){
     segments <- list()
     dir <- file.path(directory,condition_list[i])
-    filelist <- list.files(dir,full.names = T,recursive = F,pattern = "^Traj_.*.\\.csv$")
+    filelist <- list.files(dir,full.names = T,recursive = F,pattern = "^Traj_.*.\\mask.csv$")
     filelist <- filelist[-grep(filelist,pattern = "^.*transformed.*$")]
     total <- length(filelist)
     # create progress bar
@@ -157,6 +157,108 @@ msd_analyze_data_mosaic_mask <- function(directory,condition_list,framerate,n,fi
   save(msd_fit_all,file=file.path(directory,paste("msd_fit_all_",extension,".Rdata")))
   save(track_stats_all,file=file.path(directory,paste("track_stats_all_",extension,".Rdata")))
 }
+
+msd_analyze_data_mosaic_mask_parallel <- function(directory,condition_list,framerate,n,fitzero,min_length,pixelsize,fitMSD,offset,max_tracks,track_file_name="tracks.simple.filtered.txt",extension="",dim,groundtruth=TRUE){
+  segments_all <- list()
+  msd_fit_all <- list()
+  track_stats_all <- list()
+  library(readr)
+  for (i in 1:length(condition_list)){
+    dirs <- file.path(directory,condition_list[i])
+    filelist <- list.files(dirs,full.names = T,recursive = F,pattern = "^Traj_.*.\\mask.csv$")
+    filelist <- filelist[-grep(filelist,pattern = "^.*transformed.*$")]
+    total <- seq(1:length(filelist))
+    
+    nodes <- detectCores()
+    cl <- makeCluster(nodes-6)
+    registerDoParallel(cl)
+    dimensions <- dim
+    offst <- offset
+    pixelsize <- pixelsize
+    n <- n
+    fitMSD<- fitMSD
+    fitzero <-fitzero
+    framerate<-framerate
+    groundtruth <- groundtruth
+    cat(paste0("Analyzing ",condition_list[i],"\n"))
+    output <-alply(filelist,.margins = 1,.parallel = TRUE,.paropts = list(.export=c("filelist","dirs","groundtruth","n","framerate","offst","pixelsize","dimensions","fitMSD","fitzero"),.packages=c("MSDtracking","readr","stats")),function(j){
+      Sys.sleep(0.1)
+      tracks_simple <- read_csv(j)
+      names(tracks_simple) <- c("track","X","Y","Z","time","frame","step_x","step_y","step_z","inMask")
+      #trackID,pos_x,pos_y,pos_z,time,frame,step_x,step_y,step_z,inMask
+      tracks_simple <- tracks_simple[,c(6,2,3,1,4,5,7,8,9,10)]
+      #3,4,5,2,6,7,8,9,10,11,12)]
+      tracks_simple$frame <- tracks_simple$frame
+      segments <- data.frame(SEGMENT_STAT(tracks_simple),"cellID"=basename(j))
+      if(groundtruth){
+        filelist_gt <- list.files(dirs,full.names = T,recursive = F,pattern = paste0("^Traj_transformed.*.",basename(j)))
+        #cat(paste0("number groundtruths found:", k))
+        for(k in 1:length(filelist_gt)){
+          tracks_simple_gt <- read_csv(filelist_gt[k])
+          names(tracks_simple_gt) <- c("track","X","Y","Z","time","frame","step_x","step_y","step_z","inMask")
+          segments[[paste0("inMask_gt",k)]] <- tracks_simple_gt$inMask
+        }
+        
+      }
+      track_msd <- TRACK_MSD(segments,n = n,framerate=framerate,pxsize = pixelsize,dim=dimensions)
+      if(fitMSD==TRUE){
+        #tracks <-  TRACK_MSD_fit(track_msd,n = n,fitzero = fitzero,framerate=framerate,pxsize = pixelsize,offset=offset,dim=dimensions)
+        tracks <-  TRACK_MSD_fit(track_msd,n = n,fitzero = fitzero,framerate=framerate,pxsize = pixelsize,dim=dimensions)
+        
+        for (k in 1:length(tracks$track)){
+          tracks$inMask = FALSE
+          if(groundtruth){
+            for(l in 1:length(filelist_gt)){
+              tracks[[paste0("inMask_gt",l)]] = FALSE
+            }
+          }
+        }
+
+          for(l in 1:length(tracks$track)){
+            tracks$inMask[l] <- any(segments$inMask[segments$track==tracks$track[l]]==1)
+          }
+          if(groundtruth){
+            for(l in 1:length(filelist_gt)){
+
+              for(m in 1:length(tracks$track)){
+                tracks[[paste0("inMask_gt",l)]][m] <- any(segments[[paste0("inMask_gt",l)]][segments$track==tracks$track[m]]==1)
+              }
+            }
+          }
+        }
+      if(fitMSD==TRUE){
+       return(list("segments"=segments,"tracks"=tracks))
+       }
+       else {
+        return(segments)
+      }
+    })
+    stopCluster(cl)
+    segments <- list()
+    tracks <- list()
+    for(m in 1:length(output)){
+      segments[[m]] <- output[[m]]$segments
+      tracks[[m]] <- output[[m]]$tracks
+    }
+    names(segments) <- basename(filelist)
+    names(tracks) <- basename(filelist)
+    output <- NULL
+    # stats <- TRACK_STAT(x=segments)
+    #save(stats,file=file.path(dir,"track_stats.Rdata"))
+    
+    
+    segments_all[[basename(dirs)]] <- data.frame(ldply(segments),"condition"=basename(dirs))
+    msd_fit_all[[basename(dirs)]] <- data.frame(ldply(tracks),"condition"=basename(dirs))
+    #track_stats_all[[basename(dir)]] <- data.frame(ldply(stats),"condition"=basename(dir))
+    
+    
+  }
+  #save data to the folder
+  save(segments_all,file=file.path(directory,paste("segments_all.Rdata")))
+  save(msd_fit_all,file=file.path(directory,paste("msd_fit_all.Rdata")))
+  save(track_stats_all,file=file.path(directory,paste("track_stats_all.Rdata")))
+}
+
 
 
 msd_analyze_data_submask <- function(directory,condition_list,framerate,n,fitzero,min_length,pixelsize,fitMSD,offset,max_tracks,track_file_name="tracks.simple.filtered.txt",extension=""){
@@ -268,6 +370,118 @@ msd_analyze_data_submask <- function(directory,condition_list,framerate,n,fitzer
   save(track_stats_all,file=file.path(directory,paste0("track_stats_all_",extension,".Rdata")))
   save(track_stats_inside_all,file=file.path(directory,paste0("track_stats_inside_all_",extension,".Rdata")))
 
+}
+
+msd_analyze_data_submask <- function(directory,condition_list,framerate,n,fitzero,min_length,pixelsize,fitMSD,offset,max_tracks,track_file_name="tracks.simple.filtered.txt",extension=""){
+  library(RImageJROI)
+  library(spatstat.utils)
+  library(spatstat)
+  segments_inside_all <- list()
+  segments_outside_all <- list()
+  
+  msd_fit_inside_all <- list()
+  msd_fit_outside_all <- list()
+  track_stats_inside_all <- list()
+  track_stats_outside_all <- list()
+  
+  
+  for (i in 1:length(condition_list)){
+    segments_inside <- list()
+    segments_outside <- list()
+    dir <- file.path(directory,condition_list[i])
+    filelist <- list.dirs(dir,full.names = T,recursive = F)
+    # create progress bar
+    
+    nodes <- detectCores()
+    cl <- makeCluster(nodes)
+    registerDoParallel(cl)
+    for(j in 1:total){
+      Sys.sleep(0.1)
+      tracks_simple <- read.csv(file.path(filelist[j],track_file_name),sep = "\t",header = F)
+      tracks_simple$inside <- FALSE
+      roi <- read.ijzip(file.path(filelist[j],"mask_a.zip"))
+      roi <- llply(roi, function(x){
+        area <- Area.xypolygon( list(x = x$coords[, 1], y = x$coords[, 2]))
+        if (area<0){
+          x$coords <- x$coords[ nrow(x$coords):1, ]
+        }
+        return(x)
+      })
+      roi <- llply(roi, function(x){
+        ij2spatstat(x)
+      })
+      
+      
+      for(i in 1:length(roi)){
+        tracks_simple$inside<-tracks_simple$inside|inside.owin(x = tracks_simple$V2,y = tracks_simple$V3,w=roi[[i]])
+      }
+      tracks_simple <- ddply(tracks_simple,"V4",function(x){
+        if(any(x$inside)){
+          x$inside <- TRUE
+        }
+        return(x)
+      })
+      inside <-tracks_simple[tracks_simple$inside==TRUE,1:8]
+      track_id <- unique(inside$V4)
+      for(k in 1:length(track_id)){
+        inside$V4[inside$V4==track_id[k]] <- (k-1)
+      }
+      outside <- tracks_simple[tracks_simple$inside==FALSE,1:8]
+      track_id <- unique(outside$V4)
+      
+      for(k in 1:length(track_id)){
+        outside$V4[outside$V4==track_id[k]] <- (k-1)
+      }
+      write.table(x = cbind(sprintf("%.2f",inside$V1),sprintf("%.2f",inside$V2),sprintf("%.2f",inside$V3),inside$V4,
+                            sprintf("%.2f",inside$V5),sprintf("%.2f",inside$V6),sprintf("%.2f",inside$V7),sprintf("%.2f",inside$V8)),
+                  file = file.path(filelist[j],"tracks.simple.filtered_a.txt"),sep = "\t",col.names = F, row.names = F,quote = F)
+      write.table(x = cbind(sprintf("%.2f",outside$V1),sprintf("%.2f",outside$V2),sprintf("%.2f",outside$V3),outside$V4,
+                            sprintf("%.2f",outside$V5),sprintf("%.2f",outside$V6),sprintf("%.2f",outside$V7),sprintf("%.2f",outside$V8)),
+                  file = file.path(filelist[j],"tracks.simple.filtered_b.txt"),sep = "\t",col.names = F, row.names = F,quote = F)
+      names(tracks_simple) <- c("frame","X","Y","track","displacement","intensity","sigma","fit_error","inside")
+      segments_inside[[j]] <- data.frame(SEGMENT_STAT(tracks_simple[tracks_simple$inside==TRUE,]),"cellID"=basename(dirname(file.path(filelist[j],track_file_name))))
+      segments_outside[[j]] <- data.frame(SEGMENT_STAT(tracks_simple[tracks_simple$inside==FALSE,]),"cellID"=basename(dirname(file.path(filelist[j],track_file_name))))
+      
+    }
+    track_msd_inside <- TRACK_MSD(llply(segments_inside,function(x) {
+      x[x$inside,]
+    }),n = n,framerate=framerate,truncate = FALSE)
+    track_msd_outside <- TRACK_MSD(llply(segments_outside,function(x) {
+      x[!x$inside,]
+    }),n = n,framerate=framerate,truncate = FALSE)
+    
+    
+    tracks_inside <-  TRACK_MSD_fit(track_msd_inside,n = n,fitzero = fitzero,framerate=framerate,offset)
+    tracks_outside <-  TRACK_MSD_fit(track_msd_outside,n = n,fitzero = fitzero,framerate=framerate,offset)
+    save(tracks_inside,file=file.path(dir,"msd_inside_fit.Rdata"))
+    save(tracks_outside,file=file.path(dir,"msd_outside_fit.Rdata"))
+    
+    stats_inside <- TRACK_STAT(x=segments_inside)
+    stats_outside <- TRACK_STAT(x=segments_outside)
+    
+    
+    
+    segments_inside_all[[basename(dir)]] <- data.frame(ldply(segments_inside),"condition"=basename(dir))
+    segments_outside_all[[basename(dir)]] <- data.frame(ldply(segments_outside),"condition"=basename(dir))
+    
+    msd_fit_inside_all[[basename(dir)]] <- data.frame(ldply(tracks_inside),"condition"=basename(dir))
+    msd_fit_outside_all[[basename(dir)]] <- data.frame(ldply(tracks_outside),"condition"=basename(dir))
+    track_stats_inside_all[[basename(dir)]] <- data.frame(ldply(stats_inside),"condition"=basename(dir))
+    track_stats_outside_all[[basename(dir)]] <- data.frame(ldply(stats_outside),"condition"=basename(dir))
+    
+    
+    
+  }
+  #save data to the folder
+  save(segments_inside_all,file=file.path(directory,paste0("segments_inside_all_",extension,".Rdata")))
+  save(segments_outside_all,file=file.path(directory,paste0("segments_outside_all_",extension,".Rdata")))
+  
+  save(msd_fit_inside_all,file=file.path(directory,paste0("msd_fit_inside_all_",extension,".Rdata")))
+  save(msd_fit_outside_all,file=file.path(directory,paste0("msd_fit_outside_all_",extension,".Rdata")))
+  
+  save(track_stats_all,file=file.path(directory,paste0("track_stats_all_",extension,".Rdata")))
+  save(track_stats_inside_all,file=file.path(directory,paste0("track_stats_inside_all_",extension,".Rdata")))
+  
 }
 
 
@@ -410,7 +624,7 @@ msd_histogram <- function(msd_fit_all,directory,name="",threshold=0.05,order=NUL
     axis.title.x = element_text(vjust = -0.2,colour="grey"),
     axis.text = element_text(colour="grey")),bg = "transparent",dpi=400,limitsize = F,units="mm",height=100, width=150)
 
-  results <- llply(plotdata,function(x) {
+  results <- llply(msd_fit_all,function(x) {
     ddply(x,.variables = merge_var,function(x){
       out <- table(x$D>threshold)/length(x$D)
       if(length(out)==1){
@@ -452,7 +666,7 @@ msd_histogram <- function(msd_fit_all,directory,name="",threshold=0.05,order=NUL
   q2 <- ggplot(out, aes(x=.id, y=mean,fill=.id)) +
     geom_bar(position=position_dodge(width = 1.1), stat="identity")+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se),width=.2)+xlab("")+ylab("immobile fraction")+
     scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=16)+theme(legend.position = "none")+
-    ylim(0,0.5)+ theme(axis.text.x = element_text(angle = 90, hjust = 1))+ylab("immobile fraction")
+    ylim(0,1.1)+ theme(axis.text.x = element_text(angle = 90, hjust = 1))+ylab("immobile fraction")
   print(q2)
 
   ggsave(filename = file.path(directory,paste0(name,"_immobile_bar_graph.pdf")),plot = q2,units="mm",height=100, width=150)
@@ -494,7 +708,7 @@ msd_histogram <- function(msd_fit_all,directory,name="",threshold=0.05,order=NUL
   q3 <- ggplot(results2,aes(x=factor(.id),y=immobile,fill=.id))+ theme(axis.text.x = element_text(angle = 90, hjust = 1))+
     geom_dotplot(binaxis = "y", stackdir = "center",dotsize = 0.7)+ xlab("")+
     scale_colour_Publication()+scale_fill_Publication()+theme(legend.position = "none")+theme_Publication(base_size=12)+
-    ylim(0,1)+stat_summary(fun.data=mean_cl_normal,
+    ylim(0,1.1)+stat_summary(fun.data=mean_cl_normal,
                              geom="errorbar", color="black", width=0.3,size=1) +
     stat_summary(fun.y=mean, geom="point", color="black")
   print(q3)
@@ -513,7 +727,7 @@ msd_histogram <- function(msd_fit_all,directory,name="",threshold=0.05,order=NUL
   q4 <- ggplot(results2,aes(x=factor(.id),y=immobile,fill=.id))+ theme(axis.text.x = element_text(angle = 90, hjust = 1))+
     geom_boxjitter(errorbar.draw = TRUE,jitter.height = 0, jitter.width = 0.04)+ xlab("")+
     scale_colour_Publication()+scale_fill_Publication()+theme(legend.position = "none")+theme_Publication(base_size=12)+
-    ylim(0,1)
+    ylim(0,1.1)
   print(q4)
   ggsave(filename = file.path(directory,paste0(name,"_immobile_boxplot.pdf")),plot = q4,units="mm",height=100, width=150)
   ggsave(filename = file.path(directory,paste0(name,"_immobile_boxplot.png")),plot = q4,bg = "transparent",dpi=400,limitsize = F,units="mm",height=100, width=75)
