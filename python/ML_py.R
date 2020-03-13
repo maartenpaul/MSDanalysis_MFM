@@ -1,13 +1,14 @@
+library(reticulate)
+library(tidyverse)
+library(reshape2)
+
 ML_load <- function(path_to_model="python/Model_Bidirectional_NoShape_3state_Tr10000"){
-  library(reticulate)
-  library(tidyverse)
-  library(reshape2)
   rm(py)
   #py$MLfolder <- 'D:/Imaging_data/ML_test/'
   cat("Loading Python functions and ML model")
-  source_python("python/MLE_functions.py")
+  source_python(file.path(getwd(),"python/MLE_functions.py"))
   py$path_to_model <- path_to_model
-  source_python("python/Load_model.py")
+  source_python(file.path(getwd(),"python/Load_model.py"))
 }
 
 ML_segment_tracks <- function(tracks,directory=NULL){

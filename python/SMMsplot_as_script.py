@@ -1,7 +1,7 @@
 import os
 import matplotlib
 import matplotlib.pyplot as plt
-os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = 'C:/Users/maart/Anaconda3/Library/plugins/platforms'
+#os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = 'C:/Users/maart/Anaconda3/Library/plugins/platforms'
 numPmsd = 4
 numPmss = 4
 minLen = 10

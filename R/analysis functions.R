@@ -259,6 +259,112 @@ msd_analyze_data_mosaic_mask_parallel <- function(directory,condition_list,frame
   save(track_stats_all,file=file.path(directory,paste("track_stats_all.Rdata")))
 }
 
+msd_analyze_data_mosaic_mask_parallel_intensity <- function(directory,condition_list,framerate,n,fitzero,min_length,pixelsize,fitMSD,offset,max_tracks,track_file_name="tracks.simple.filtered.txt",extension="",dim,groundtruth=TRUE){
+  segments_all <- list()
+  msd_fit_all <- list()
+  track_stats_all <- list()
+  library(readr)
+  for (i in 1:length(condition_list)){
+    dirs <- file.path(directory,condition_list[i])
+    filelist <- list.files(dirs,full.names = T,recursive = F,pattern = "^Traj_.*.\\mask2.csv$")
+    filelist <- filelist[-grep(filelist,pattern = "^.*transformed.*$")]
+    total <- seq(1:length(filelist))
+    
+    nodes <- detectCores()
+    cl <- makeCluster(nodes-6)
+    registerDoParallel(cl)
+    dimensions <- dim
+    offst <- offset
+    pixelsize <- pixelsize
+    n <- n
+    fitMSD<- fitMSD
+    fitzero <-fitzero
+    framerate<-framerate
+    groundtruth <- groundtruth
+    cat(paste0("Analyzing ",condition_list[i],"\n"))
+    output <-alply(filelist,.margins = 1,.parallel = TRUE,.paropts = list(.export=c("filelist","dirs","groundtruth","n","framerate","offst","pixelsize","dimensions","fitMSD","fitzero"),.packages=c("MSDtracking","readr","stats")),function(j){
+      Sys.sleep(0.1)
+      tracks_simple <- read_csv(j)
+      names(tracks_simple) <- c("track","X","Y","Z","time","frame","step_x","step_y","step_z","inMask","rawInt","meanInt","sdInt","maxInt","minInt","distMask")
+      
+      tracks_simple <- tracks_simple[,c(6,2,3,1,4,5,7,8,9,10,11,12,13,14,15,16)]
+      tracks_simple$frame <- tracks_simple$frame
+      segments <- data.frame(SEGMENT_STAT(tracks_simple),"cellID"=basename(j))
+      if(groundtruth){
+        filelist_gt <- list.files(dirs,full.names = T,recursive = F,pattern = paste0("^Traj_transformed.*.",basename(j)))
+        #cat(paste0("number groundtruths found:", k))
+        for(k in 1:length(filelist_gt)){
+          tracks_simple_gt <- read_csv(filelist_gt[k])
+          names(tracks_simple_gt) <- c("track","X","Y","Z","time","frame","step_x","step_y","step_z","inMask","rawInt","meanInt","sdInt","maxInt","minInt","distMask")
+          segments[[paste0("inMask_gt",k)]] <- tracks_simple_gt$inMask
+          segments[[paste0("rawInt_gt",k)]] <- tracks_simple_gt$rawInt
+          segments[[paste0("meanInt_gt",k)]] <- tracks_simple_gt$meanInt
+          segments[[paste0("sdInt_gt",k)]] <- tracks_simple_gt$sdInt
+          segments[[paste0("maxInt_gt",k)]] <- tracks_simple_gt$maxInt
+          segments[[paste0("minInt_gt",k)]] <- tracks_simple_gt$minInt
+          segments[[paste0("distMask_gt",k)]] <- tracks_simple_gt$distMask
+          
+        }
+        
+      }
+      track_msd <- TRACK_MSD(segments,n = n,framerate=framerate,pxsize = pixelsize,dim=dimensions)
+      if(fitMSD==TRUE){
+        #tracks <-  TRACK_MSD_fit(track_msd,n = n,fitzero = fitzero,framerate=framerate,pxsize = pixelsize,offset=offset,dim=dimensions)
+        tracks <-  TRACK_MSD_fit(track_msd,n = n,fitzero = fitzero,framerate=framerate,pxsize = pixelsize,dim=dimensions)
+        
+        for (k in 1:length(tracks$track)){
+          tracks$inMask = FALSE
+          if(groundtruth){
+            for(l in 1:length(filelist_gt)){
+              tracks[[paste0("inMask_gt",l)]] = FALSE
+            }
+          }
+        }
+        
+        for(l in 1:length(tracks$track)){
+          tracks$inMask[l] <- any(segments$inMask[segments$track==tracks$track[l]]==1)
+        }
+        if(groundtruth){
+          for(l in 1:length(filelist_gt)){
+            
+            for(m in 1:length(tracks$track)){
+              tracks[[paste0("inMask_gt",l)]][m] <- any(segments[[paste0("inMask_gt",l)]][segments$track==tracks$track[m]]==1)
+            }
+          }
+        }
+      }
+      if(fitMSD==TRUE){
+        return(list("segments"=segments,"tracks"=tracks))
+      }
+      else {
+        return(segments)
+      }
+    })
+    stopCluster(cl)
+    segments <- list()
+    tracks <- list()
+    for(m in 1:length(output)){
+      segments[[m]] <- output[[m]]$segments
+      tracks[[m]] <- output[[m]]$tracks
+    }
+    names(segments) <- basename(filelist)
+    names(tracks) <- basename(filelist)
+    output <- NULL
+    # stats <- TRACK_STAT(x=segments)
+    #save(stats,file=file.path(dir,"track_stats.Rdata"))
+    
+    
+    segments_all[[basename(dirs)]] <- data.frame(ldply(segments),"condition"=basename(dirs))
+    msd_fit_all[[basename(dirs)]] <- data.frame(ldply(tracks),"condition"=basename(dirs))
+    #track_stats_all[[basename(dir)]] <- data.frame(ldply(stats),"condition"=basename(dir))
+    
+    
+  }
+  #save data to the folder
+  save(segments_all,file=file.path(directory,paste("segments_all.Rdata")))
+  save(msd_fit_all,file=file.path(directory,paste("msd_fit_all.Rdata")))
+  save(track_stats_all,file=file.path(directory,paste("track_stats_all.Rdata")))
+}
 
 
 msd_analyze_data_submask <- function(directory,condition_list,framerate,n,fitzero,min_length,pixelsize,fitMSD,offset,max_tracks,track_file_name="tracks.simple.filtered.txt",extension=""){
