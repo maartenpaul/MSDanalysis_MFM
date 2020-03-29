@@ -118,11 +118,36 @@ segment_stat <- function(x){
     seg_angle <- c(-1,seg_angle,-1)
     return(seg_angle)
   }
+  get_angle_3D <- function(x){
+    seg_angle <- vector()
+    for(i in 1:(nrow(x)-2)){
+      A <- as.numeric(x[i,c(2,3,5)])
+      B <- as.numeric(x[i+1,c(2,3,5)])
+      C <- as.numeric(x[i+2,c(2,3,5)])
+      AB <- B-A
+      CB <- C-B
+      
+      #dAB <- sqrt((B[1]-A[1])^2+(B[2]-A[2])^2)
+      #dBC <- sqrt((C[1]-B[1])^2+(C[2]-B[2])^2)
+      #Formula obtained from https://gitlab.com/anders.sejr.hansen/anisotropy
+      angle <- abs(atan2(det(cbind(AB,CB)),AB%*%CB))
+      angle <- angle/pi*180
+      seg_angle <- c(seg_angle,angle)
+      
+      
+    }
+    seg_angle <- c(-1,seg_angle,-1)
+    return(seg_angle)
+  }
+  
 
   result <- ddply(x,.variables = "track",function(x){
   if(nrow(x)>4){x$angle <- get_angle(x)}else{
     x$angle<- 0
   }
+    if(nrow(x)>4){x$angle <- get_angle_3D(x)}else{
+      x$angle3D<- 0
+    } 
   if(!is.null(x$displacement)){
     x$disp_squared <- x$displacement^2
     x$disp_squared[x$displacement==-1] <- -1

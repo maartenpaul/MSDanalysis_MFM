@@ -271,7 +271,7 @@ msd_analyze_data_mosaic_mask_parallel_intensity <- function(directory,condition_
     total <- seq(1:length(filelist))
     
     nodes <- detectCores()
-    cl <- makeCluster(nodes-6)
+    cl <- makeCluster(nodes-12)
     registerDoParallel(cl)
     dimensions <- dim
     offst <- offset
@@ -290,6 +290,16 @@ msd_analyze_data_mosaic_mask_parallel_intensity <- function(directory,condition_
       tracks_simple <- tracks_simple[,c(6,2,3,1,4,5,7,8,9,10,11,12,13,14,15,16)]
       tracks_simple$frame <- tracks_simple$frame
       segments <- data.frame(SEGMENT_STAT(tracks_simple),"cellID"=basename(j))
+      segments <- ddply(segments,.variables = "track",function(x){
+          if(any(x$inMask==TRUE)){
+            x$trackInMask <-TRUE
+          } else {
+            x$trackInMask <-FALSE
+          }
+          return(x)
+        })
+      
+      
       if(groundtruth){
         filelist_gt <- list.files(dirs,full.names = T,recursive = F,pattern = paste0("^Traj_transformed.*.",basename(j)))
         #cat(paste0("number groundtruths found:", k))
@@ -303,6 +313,14 @@ msd_analyze_data_mosaic_mask_parallel_intensity <- function(directory,condition_
           segments[[paste0("maxInt_gt",k)]] <- tracks_simple_gt$maxInt
           segments[[paste0("minInt_gt",k)]] <- tracks_simple_gt$minInt
           segments[[paste0("distMask_gt",k)]] <- tracks_simple_gt$distMask
+          segments <- ddply(segments,.variables = "track",function(x){
+            if(any(x[[paste0("inMask_gt",k)]]==TRUE)){
+              x[[paste0("trackInMask_gt",k)]] <-TRUE
+            } else {
+              x[[paste0("trackInMask_gt",k)]] <-FALSE
+            }
+            return(x)
+          })
           
         }
         
@@ -352,15 +370,26 @@ msd_analyze_data_mosaic_mask_parallel_intensity <- function(directory,condition_
     output <- NULL
     # stats <- TRACK_STAT(x=segments)
     #save(stats,file=file.path(dir,"track_stats.Rdata"))
-    
-    
-    segments_all[[basename(dirs)]] <- data.frame(ldply(segments),"condition"=basename(dirs))
-    msd_fit_all[[basename(dirs)]] <- data.frame(ldply(tracks),"condition"=basename(dirs))
+    segments <- data.frame(ldply(segments),"condition"=condition_list[i])
+    tracks <- data.frame(ldply(tracks),"condition"=condition_list[i])
+    save(segments,file = file.path(directory,condition_list[i],"segments.Rdata"))
+    save(tracks,file = file.path(directory,condition_list[i],"tracks.Rdata"))
+    rm(segments)
+    rm(tracks)
     #track_stats_all[[basename(dir)]] <- data.frame(ldply(stats),"condition"=basename(dir))
     
     
   }
   #save data to the folder
+  cat("Finishing off, putting all data together")
+  for (i in condition_list){
+    load(file=file.path(directory,i,"segments.Rdata"))
+    load(file = file.path(directory,i,"tracks.Rdata"))
+    segments_all[[i]] <- segments
+    msd_fit_all[[i]] <- tracks
+  }
+  
+  
   save(segments_all,file=file.path(directory,paste("segments_all.Rdata")))
   save(msd_fit_all,file=file.path(directory,paste("msd_fit_all.Rdata")))
   save(track_stats_all,file=file.path(directory,paste("track_stats_all.Rdata")))

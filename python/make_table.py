@@ -2,6 +2,8 @@ x0, y0, x1, y1, x2, y2, trnums0, trnums1, trnums2 = getTrackPiecesForInfo(x, y, 
 
 numPmsd = 4
 numPmss = 4
+minLen = 10
+
 p = np.linspace(0.5, 6, 12)
 
 info = []
@@ -14,7 +16,7 @@ for xx, yy, tn in zip(x0 + x1 + x2, y0 + y1 + y2, trnums0 + trnums1 + trnums2):
     cn = ((closest - int(np.floor(tn))) < 0) * indices.index(closest) + \
     ((closest - int(np.floor(tn))) > 0) * (indices.index(closest) - 1)
 
-    if len(xx) > max(numPmsd, numPmss):
+    if len(xx) > max(numPmsd, numPmss, minLen):
         dif, _, smss, _ = getMSDandMSS([xx], [yy], numPmsd, numPmss, p)
     else:
         dif = 'NA'

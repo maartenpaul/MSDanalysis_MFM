@@ -1,6 +1,7 @@
 import os
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
 #os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = 'C:/Users/maart/Anaconda3/Library/plugins/platforms'
 numPmsd = 4
 numPmss = 4
@@ -82,15 +83,15 @@ ax = g.ax_joint
 ax.set_xscale('log')
 g.plot_joint(plt.scatter, color = 'darkorange', alpha = 0.04, edgecolor = 'darkorange')
 ax.axhspan(0.4, 0.6, facecolor = 'slateblue', edgecolor = 'none', alpha = 0.1)
-ax.set_ylim(0, 1)
-ax.set_xlim(0.0001,10)
+ax.set_ylim(-0.5, 1)
+ax.set_xlim(1e-6,50)
 
 g.ax_marg_x.set_xscale('log')
 g.ax_marg_x.hist(df[r'$D$ $\mathrm{[\mu m^2/s]}$'], color = 'darkorange', edgecolor = 'none', alpha = 0.4, \
-                 bins = np.logspace(-7, np.log10(max(arDiff)), 50))
+                 bins = np.logspace(-6, np.log10(100), 50))
 
 g.ax_marg_y.hist(df[r'$S_{\mathrm{MSS}}$'], color = 'darkorange', edgecolor = 'none', alpha = 0.4, \
-                 orientation = 'horizontal', bins = np.linspace(min(arSmss), max(arSmss), 50))
+                 orientation = 'horizontal', bins = np.linspace(-0.5, 1, 50))
 g.ax_marg_y.axhspan(0.4, 0.6, facecolor = 'slateblue', edgecolor = 'none', alpha = 0.1)
 
 orange_patch = mpatches.Patch(color = 'darkorange', alpha = 0.4, label = 'Total')
@@ -98,43 +99,43 @@ ax.legend(handles = [orange_patch], loc = 'upper left')
 plt.xlabel(r'$D$ $\mathrm{[\mu m^2/s]}$', fontdict = font, size = 'large')
 plt.ylabel(r'$S_{\mathrm{MSS}}$', fontdict = font, size = 'large')
 plt.show()
-
-plt.savefig("SMMsplot_all.png",dpi=600)
-plt.savefig("SMMsplot_all.pdf")
-  # Plot per trackstate (whole tracks only fast / only slow / only immobile / switching)
+ 
+plt.savefig(directory+condition+"/"+"WholeTracksplot_" + state + ".png",dpi=600)
+plt.savefig(directory+condition+"/"+"WholeTracksplot_" + state + ".pdf",dpi=600)
+plt.close()
+# Plot per trackstate (whole tracks only fast / only slow / only immobile / switching)
 dataSw = np.column_stack((arDiffSw, arSmssSw))
 dfSw = pd.DataFrame(dataSw, columns = [r'$D$ $\mathrm{[\mu m^2/s]}$', r'$S_{\mathrm{MSS}}$'])
 gSw = sns.JointGrid(r'$D$ $\mathrm{[\mu m^2/s]}$', r'$S_{\mathrm{MSS}}$', data = dfSw)
 
 axSw = gSw.ax_joint
 axSw.set_xscale('log')
-axSw.set_ylim(0, 1)
+axSw.set_ylim(-0.5, 1)
 gSw.plot_joint(plt.scatter, color = 'green', alpha = 0.04, edgecolor = 'green')
 axSw.scatter(arDiffF, arSmssF, color = 'r', alpha = 0.04, edgecolor = 'r')
 axSw.scatter(arDiffS, arSmssS, color = 'royalblue', alpha = 0.04, edgecolor = 'royalblue')
 axSw.scatter(arDiffI, arSmssI, color = 'darkblue', alpha = 0.04, edgecolor = 'darkblue')
 axSw.axhspan(0.4, 0.6, facecolor = 'slateblue', edgecolor = 'none', alpha = 0.1)
-
-axSw.set_xlim(0.0001,10)
+axSw.set_xlim(1e-6,50)
 
 gSw.ax_marg_x.set_xscale('log')
 gSw.ax_marg_x.hist(dfSw[r'$D$ $\mathrm{[\mu m^2/s]}$'], color = 'green', edgecolor = 'none', alpha = 0.4, \
-                   bins = np.logspace(np.log10(min(arDiffSw)), np.log10(max(arDiffSw)), 50))
+                   bins = np.logspace(np.log10(1e-6), np.log10(100), 50))
 gSw.ax_marg_x.hist(arDiffF, color = 'red', edgecolor = 'none', alpha = 0.4, \
-                   bins = np.logspace(np.log10(min(arDiffF)), np.log10(max(arDiffF)), 50))
+                   bins = np.logspace(np.log10(1e-6), np.log10(100), 50))
 gSw.ax_marg_x.hist(arDiffS, color = 'royalblue', edgecolor = 'none', alpha = 0.4, \
-                   bins = np.logspace(np.log10(min(arDiffS)), np.log10(max(arDiffS)), 50))
+                   bins = np.logspace(np.log10(1e-6), np.log10(100), 50))
 gSw.ax_marg_x.hist(arDiffI, color = 'darkblue', edgecolor = 'none', alpha = 0.4, \
-                   bins = np.logspace(np.log10(min(arDiffI)), np.log10(max(arDiffI)), 50))
+                   bins = np.logspace(np.log10(1e-6), np.log10(100), 50))
 
 gSw.ax_marg_y.hist(dfSw[r'$S_{\mathrm{MSS}}$'], color = 'green', edgecolor = 'none', alpha = 0.4, \
-                   orientation = 'horizontal', bins = np.linspace(min(arSmssSw), max(arSmssSw), 50))
+                   orientation = 'horizontal', bins = np.linspace(-.5, 1, 50))
 gSw.ax_marg_y.hist(arSmssF, color = 'red', edgecolor = 'none', alpha = 0.4, \
-                   orientation = 'horizontal', bins = np.linspace(min(arSmssF), max(arSmssF), 50))
+                   orientation = 'horizontal', bins = np.linspace(-.5, 1, 50))
 gSw.ax_marg_y.hist(arSmssS, color = 'royalblue', edgecolor = 'none', alpha = 0.4, \
-                   orientation = 'horizontal', bins = np.linspace(min(arSmssS), max(arSmssS), 50))
+                   orientation = 'horizontal', bins = np.linspace(-.5, 1, 50))
 gSw.ax_marg_y.hist(arSmssI, color = 'darkblue', edgecolor = 'none', alpha = 0.4, \
-                   orientation = 'horizontal', bins = np.linspace(min(arSmssI), max(arSmssI), 50))
+                   orientation = 'horizontal', bins = np.linspace(-.5, 1, 50))
 gSw.ax_marg_y.axhspan(0.4, 0.6, facecolor = 'slateblue', edgecolor = 'none', alpha = 0.1)
 
 red_patch = mpatches.Patch(color = 'red', alpha = 0.4, label = 'Only fast')
@@ -145,9 +146,10 @@ axSw.legend(handles = [red_patch, royalblue_patch, darkblue_patch, green_patch],
 plt.xlabel(r'D $\mathrm{(\mu m^2/sec)}$', fontdict = font, size = 'large')
 plt.ylabel(r'$S_{\mathrm{MSS}}$', fontdict = font, size = 'large')
 plt.show()
-
-plt.savefig("SMMsplot_switch.png",dpi=600)
-plt.savefig("SMMsplot_switch.pdf")
+##
+plt.savefig(directory+condition+"/"+"SplitTracksplot_" + state + ".png",dpi=600)
+plt.savefig(directory+condition+"/"+"SplitTracksplot_" + state + ".pdf",dpi=600)
+plt.close()
 # Plot split (trackpieces fast / slow / immobile)
 data0 = np.column_stack((arDiff0, arSmss0))
 df0 = pd.DataFrame(data0, columns = [r'$D$ $\mathrm{[\mu m^2/s]}$', r'$S_{\mathrm{MSS}}$'])
@@ -159,24 +161,24 @@ f.plot_joint(plt.scatter, color = 'r', alpha = 0.1, edgecolor = 'r')
 ax0.scatter(arDiff1, arSmss1, color = 'royalblue', alpha = 0.1, edgecolor = 'royalblue')
 ax0.scatter(arDiff2, arSmss2, color = 'darkblue', alpha = 0.1, edgecolor = 'darkblue')
 ax0.axhspan(0.4, 0.6, facecolor = 'slateblue', edgecolor = 'none', alpha = 0.1)
-ax0.set_ylim(0, 1)
-ax.set_xlim(0.00001,10)
+ax0.set_ylim(-0.5, 1)
+ax0.set_xlim(1e-6,50)
 
 
 f.ax_marg_x.set_xscale('log')
 f.ax_marg_x.hist(df0[r'$D$ $\mathrm{[\mu m^2/s]}$'], color = 'red', edgecolor = 'none', alpha = 0.4, \
-                 bins = np.logspace(np.log10(min(arDiff0)), np.log10(max(arDiff0)), 50))
+                 bins = np.logspace(np.log10(1e-6), np.log10(100), 50))
 f.ax_marg_x.hist(arDiff1, color = 'royalblue', edgecolor = 'none', alpha = 0.4, \
-                 bins = np.logspace(np.log10(min(arDiff1)), np.log10(max(arDiff1)), 50))
+                 bins = np.logspace(np.log10(1e-6), np.log10(100), 50))
 f.ax_marg_x.hist(arDiff2, color = 'darkblue', edgecolor = 'none', alpha = 0.4, \
-                 bins = np.logspace(np.log10(min(arDiff2)), np.log10(max(arDiff2)), 50))
+                 bins = np.logspace(np.log10(1e-6), np.log10(100), 50))
 
 f.ax_marg_y.hist(df0[r'$S_{\mathrm{MSS}}$'], color = 'red', edgecolor = 'none', alpha = 0.4, \
-                 orientation = 'horizontal', bins = np.linspace(min(arSmss0), max(arSmss0), 50))
+                 orientation = 'horizontal', bins = np.linspace(0, 1, 50))
 f.ax_marg_y.hist(arSmss1, color = 'royalblue', edgecolor = 'none', alpha = 0.4, orientation = 'horizontal', \
-                 bins = np.linspace(min(arSmss1), max(arSmss1), 50))
+                 bins = np.linspace(-0.5, 1, 50))
 f.ax_marg_y.hist(arSmss2, color = 'darkblue', edgecolor = 'none', alpha = 0.4, orientation = 'horizontal', \
-                 bins = np.linspace(min(arSmss2), max(arSmss2), 50))
+                 bins = np.linspace(-0.5, 1, 50))
 f.ax_marg_y.axhspan(0.4, 0.6, facecolor = 'slateblue', edgecolor = 'none', alpha = 0.1)
 
 red_patch = mpatches.Patch(color = 'red', alpha = 0.4, label = 'Fast tracklets')
@@ -186,5 +188,6 @@ ax0.legend(handles = [red_patch, royalblue_patch, darkblue_patch], loc = 'upper 
 plt.xlabel(r'$D$ $\mathrm{[\mu m^2/s]}$', fontdict = font, size = 'large')
 plt.ylabel(r'$S_{\mathrm{MSS}}$', fontdict = font, size = 'large')
 plt.show()
-plt.savefig("SMMsplot_tracklets.png",dpi=600)
-plt.savefig("SMMsplot_tracklets.pdf")
+plt.savefig(directory+condition+"/"+"SMMsplot_tracklets_" + state + ".png",dpi=600)
+plt.savefig(directory+condition+"/"+"SMMsplot_tracklets_" + state + ".pdf",dpi=600)
+plt.close()

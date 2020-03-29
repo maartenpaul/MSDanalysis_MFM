@@ -19,8 +19,8 @@ offset <- 4*(0.01)^2 #experimentally determined
 max_tracks <- 500 #maximum number of tracks per frame else exclude tracks from dataset, avoids mislinking of tracks
 dim <- 2 #number of dimensions of tracking
 
-directory <- "D:/OneDrive/Data2/slow_track/"
-directory <- "/media/DATA/slow_track/"
+#directory <- "D:/OneDrive/Data2/slow_track/"
+directory <- "/media/DATA/Maarten/slow_track/"
 
 condition_list <- list.dirs(directory,full.names = F,recursive = F)
 #condition_list <- condition_list[c(1,2)]
@@ -56,7 +56,7 @@ for (i in 1:length(condition_list)){
 
 #save data to the folder
 save(segments_all,file=file.path(directory,"segments_all.Rdata"))
-write_delim(ldply(segments_all),path = file.path(directory,"segments_all.txt"))
+write_delim(ldply(segments_all[-10]),path = file.path(directory,"segments_all.txt"))
 load(file=file.path(directory,"segments_all.Rdata"))
 head(segments_all$WT_200)
 
@@ -111,23 +111,11 @@ data <- ddply(data,.variables="interval", function(x){
 })
 tint = 0.05
 
-
-library(reticulate)
-#use_virtualenv("base")
-scipy <- import("scipy")
-lmfit <- import('lmfit')
-
-py$time <- as.vector(data$time)
-py$density <- as.vector(data$density)
-py$tl <- as.vector(data$tl)
-py$weight <- as.vector(data$weight)
-
+#Try using R for non-linear fitting
 library(minpack.lm)
 result <- nlsLM(formula=density~A*exp(-((kb*(tint/tl)+koff1)*time)),
                 start=list(koff1=5,kb=1,A=1),
                 lower=c(0.00001,0,0),upper = c(100,100,10),data = data,trace = T,weights = data$weight)
-result
-
 
 #formula=density~A*(B*(kb*(tint/tl)+koff1)*exp(-((kb*(tint/tl)+koff1)*time))+
 #                     C*(kb*(tint/tl)+koff2)*exp(-((kb*(tint/tl)+koff2)*time))+
@@ -140,6 +128,20 @@ result
 #result <- nlsLM(formula=density~A*(B*exp(-(kb*(tint/tl)+koff1)*time)+(1-B)*exp(-(kb*(tint/tl)+koff2)*time)),
 #                start=list(koff1=0.0001,koff2=1,kb=1,A=2,B=0.5),
 #                lower=c(0.00001,0.5,0.01,0,0),upper = c(30,30,10,5,1),data = data)
+
+result
+
+
+#Try use python scipy  and lmfit to see if it works better
+library(reticulate)
+#use_virtualenv("base")
+scipy <- import("scipy")
+lmfit <- import('lmfit')
+
+py$time <- as.vector(data$time)
+py$density <- as.vector(data$density)
+py$tl <- as.vector(data$tl)
+py$weight <- as.vector(data$weight)
 
 source_python("python/lsqfit.py")
 plot(data$time,data$density,col="black",xlab="track length (seconds)",ylab="frequency",log="xy")

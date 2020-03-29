@@ -5,6 +5,17 @@ font = {'family' : 'sans-serif',
         'weight' : 'normal',
         'size' : 'medium'}
 
+
+import tensorflow as tf
+gpus = tf.config.experimental.list_physical_devices('GPU')
+if gpus:
+    try:
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+
+    except RuntimeError as e:
+        print(e)
+
 import keras
 import os
 import pickle
@@ -30,6 +41,8 @@ import matplotlib.lines as mlines
 from sklearn.cluster import KMeans, MeanShift
 from sklearn.mixture import GaussianMixture
 from sklearn.neighbors import KernelDensity
+
+
 
 def getCoord(x, y):
 
@@ -362,3 +375,9 @@ def patchmatch(match, pattern):
             indices.append(ind.tolist())
 
     return indices
+    
+def releaseMemory():
+    from numba import cuda
+    cuda.select_device(0)
+    cuda.close()
+    

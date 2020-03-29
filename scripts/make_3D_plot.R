@@ -1,36 +1,44 @@
 library(plotly)
 library(tidyverse)
+library(dplyr)
 library(plyr)
 
-file <- "E:/track_mask/WT MMC/Traj_190312_53bp1_GFP_B2WTG10_MMC_50ms_100_f488int_0001__Ch1_preprocessed_tracks_mask.csv"
-load("E:/track_mask/WT MMC/msd_fit.Rdata")
-#load("E:/track_mask/WT MMC/track_stats.Rdata")
-tracks_cell$ <- read.csv(file,sep = ",",header = T)
-dats <- subset(ldply(tracks),cellID==basename(file))
 
-names(tracks_cell) <- c("track", "pos_x", "pos_y","pos_z", "time", "frame", "step_x", "step_y", "step_z", "inMask")
+file <- "/media/DATA/Maarten/data/WT MMC/Traj_190312_53bp1_GFP_B2WTG10_MMC_50ms_100_f488int_0001__Ch1_preprocessed_tracks_mask.csv"
+file <- "/media/DATA/Maarten/data/WT MMC/Traj_190313exp1_53bp1_GFP_B2WTG10_MMC_50ms_100_f488int_0003__Ch1_preprocessed_tracks_mask.csv"
+load("/media/DATA/Maarten/data/msd_fit_all.Rdata")
+
+#load("E:/track_mask/WT MMC/track_stats.Rdata")
+tracks_cell <- read.csv(file,sep = ",",header = T)
+
+#names(tracks_cell) <- c("track", "pos_x", "pos_y","pos_z", "time", "frame", "step_x", "step_y", "step_z", "inMask")
 
 #tracks <- tracks[,c(3,4,5,2,6,7,8,9,10,11,12)]
 head(tracks_cell)
 
-tracks <- subset(segments_all$`WT MMC`,cellID==segments_all$`WT MMC`$cellID[1])
+trackstats <- subset(msd_fit_all$`WT MMC`,.id==basename(file))
+trackstats$trackID <- trackstats$track
 
+tracks <- inner_join(trackstats,tracks_cell,by="trackID")
 
 pixelsize <- c(120,120,410) #nm
 
-tracks$X <- tracks$X*pixelsize[1]/1000
-tracks$Y <- tracks$Y*pixelsize[2]/1000
-tracks$Z <- tracks$Z*pixelsize[3]/1000
+tracks$X <- tracks$pos_x*pixelsize[1]/1000
+tracks$Y <- tracks$pos_y*pixelsize[2]/1000
+tracks$Z <- tracks$pos_z*pixelsize[3]/1000
 
 tracks$logD <- log10(tracks$D)
 
 
-minD <- min(tracks$logD)
-maxD <- max(tracks$logD)
+minD <- min(tracks$logD,na.rm = T)
+maxD <- max(tracks$logD,na.rm = T)
 
 tracks2 <- subset(tracks,inMask.x==TRUE)
+tracks2 <- tracks
+
 trackIDs <- unique(tracks2$track)
 
+tracks2$Z <- tracks2$Z*10
 
 p=plot_ly(data=subset(tracks2,track==trackIDs[1]), x = ~X, y = ~Y, z = ~Z, type = 'scatter3d', mode = 'lines',
           line = list(color = ~logD, width = 1,colorscale="Rainbow",cmin=minD,cmax=maxD),showlegend=FALSE)
@@ -43,5 +51,26 @@ p %>%
   layout(scene = list(aspectmode = "manual", aspectratio = list(x=1, y=1, z=0.2)))
 
 
-%>%
-  layout(scene = list(xaxis=axx,yaxis=axy,zaxis=axz))
+tracks2$col <- 0
+tracks2$col[tracks2$inMask.x] <- 1
+p=plot_ly(data=subset(tracks2,track==trackIDs[1]), x = ~X, y = ~Y, z = ~Z, type = 'scatter3d', mode = 'lines',
+          line = list(color = ~col, width = 1,colorscale="Rainbow",cmin=0,cmax=4),showlegend=FALSE)
+for(i in 2:length(trackIDs)){
+  p <- add_trace(p,data=subset(tracks2,track==trackIDs[i]),x = ~X, y = ~Y, z = ~Z,
+                 line = list(color = ~col, width = 1,colorscale="Rainbow",cmin=0,cmax=4))
+}
+
+p %>%
+  layout(scene = list(aspectmode = "manual", aspectratio = list(x=1, y=1, z=0.2)))
+minZ <- min(tracks2$Z)
+maxZ <- max(tracks2$Z)
+
+p=plot_ly(data=subset(tracks2,track==trackIDs[1]), x = ~X, y = ~Y, z = ~Z, type = 'scatter3d', mode = 'lines',
+          line = list(color = ~Z, width = 1,colorscale="Rainbow",cmin=minZ,cmax=maxZ),showlegend=FALSE)
+for(i in 2:length(trackIDs)){
+  p <- add_trace(p,data=subset(tracks2,track==trackIDs[i]),x = ~X, y = ~Y, z = ~Z,
+                 line = list(color = ~Z, width = 1,colorscale="Rainbow",cmin=minZ,cmax=maxZ))
+}
+
+p %>%
+  layout(scene = list(aspectmode = "manual", aspectratio = list(x=1, y=1, z=0.2)))
