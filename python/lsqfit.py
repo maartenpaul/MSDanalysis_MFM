@@ -2,7 +2,6 @@ from numpy import exp, sin, asarray
 
 from lmfit import minimize, Parameters
 
-
 def residual(params, tl, time, density,weight):
     A = params['A']
     B = params['B']

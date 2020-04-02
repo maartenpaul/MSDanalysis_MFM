@@ -1,46 +1,4 @@
-# track_mean_speed <- function(x,framerate=30,pxsize=100){
-#   #speed um/ms
-#
-#   #scale to um
-#   x$X <- (x$X*pxsize)/1000
-#   x$Y <- (x$Y*pxsize)/1000
-#
-#   #apply function for every track (column V4)
-#   meansp <- ddply(x,.variables = "track",.fun= function(x) {
-#     speed <- 0
-#     for (i in 2:nrow(x)){
-#       speed <- speed + (x$X[i]-x$X[i-1])^2+(x$Y[i]-x$Y[i-1])^2/((x$frame[i]-x$frame[i-1])*framerate)
-#     }
-#     speed <- speed/nrow(x)
-#   })
-#   names(meansp) <- c("trackid","speed")
-#   return(meansp)
-# }
-#
-# TRACK_MEAN_SPEED <- function(x,framerate=30,pxsize=100){
-#   UseMethod("TRACK_MEAN_SPEED")
-# }
-#
-# TRACK_MEAN_SPEED.default <- function(x,framerate=30,pxsize=100){
-#   stop("TRACK_MEAN_SPEED requires data frame")
-# }
-#
-# TRACK_MEAN_SPEED.data.frame <-  function(x,framerate=30,pxsize=100){
-#   track_mean_speed(x,framerate,pxsize)
-#
-# }
-#
-# TRACK_MEAN_SPEED.list <-  function(x,framerate=30,pxsize=100){
-#   llply(x,function(x){
-#     TRACK_MEAN_SPEED(x,framerate,pxsize)
-#   })
-# }
 
-
-#According to Reuter et al.
-#Filter tracks in bound vs unboud via a threshold, analyse both groups separately
-#Calculate CDF of r^2, one can fit this distribution with multiple exponents to extract D coefficients
-#Make 2D (difference) histograms by defining mobile vs immobile segments
 
 track_stat <- function(x,framerate=30,pxsize=100){
 
