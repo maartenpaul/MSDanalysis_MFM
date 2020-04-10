@@ -161,6 +161,8 @@ cellstats <- ldply(msd_fit_all,.id="condition", function(x) ddply(x,.variables =
 }))
 
 
+
+
 ggplot(cellstats,aes(x=condition,y=fraction))+geom_bar()
 
 barplot(cellstats$Ninside)
