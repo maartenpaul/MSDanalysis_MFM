@@ -285,9 +285,16 @@ msd_analyze_data_mosaic_mask_parallel_intensity <- function(directory,condition_
     output <-alply(filelist,.margins = 1,.parallel = TRUE,.paropts = list(.export=c("filelist","dirs","groundtruth","n","framerate","offst","pixelsize","dimensions","fitMSD","fitzero"),.packages=c("MSDtracking","readr","stats")),function(j){
       Sys.sleep(0.1)
       tracks_simple <- read_csv(j)
-      names(tracks_simple) <- c("track","X","Y","Z","time","frame","step_x","step_y","step_z","inMask","rawInt","meanInt","sdInt","maxInt","minInt","distMask")
-      
-      tracks_simple <- tracks_simple[,c(6,2,3,1,4,5,7,8,9,10,11,12,13,14,15,16)]
+      if(length(names(tracks_simple))==16){
+        names(tracks_simple) <- c("track","X","Y","Z","time","frame","step_x","step_y","step_z","inMask","rawInt","meanInt","sdInt","maxInt","minInt","distMask")
+        tracks_simple <- tracks_simple[,c(6,2,3,1,4,5,7,8,9,10,11,12,13,14,15,16)]
+        
+      } else if (length(names(tracks_simple))==17) {
+        names(tracks_simple) <- c("track","X","Y","Z","time","frame","step_x","step_y","step_z","inMask","rawInt","normInt","meanInt","sdInt","maxInt","minInt","distMask")
+        tracks_simple <- tracks_simple[,c(6,2,3,1,4,5,7,8,9,10,11,12,13,14,15,16,17)]
+        
+        
+      }
       tracks_simple$frame <- tracks_simple$frame
       segments <- data.frame(SEGMENT_STAT(tracks_simple),"cellID"=basename(j))
       segments <- ddply(segments,.variables = "track",function(x){
@@ -305,7 +312,12 @@ msd_analyze_data_mosaic_mask_parallel_intensity <- function(directory,condition_
         #cat(paste0("number groundtruths found:", k))
         for(k in 1:length(filelist_gt)){
           tracks_simple_gt <- read_csv(filelist_gt[k])
-          names(tracks_simple_gt) <- c("track","X","Y","Z","time","frame","step_x","step_y","step_z","inMask","rawInt","meanInt","sdInt","maxInt","minInt","distMask")
+          if(length(names(tracks_simple))==16){
+            names(tracks_simple) <- c("track","X","Y","Z","time","frame","step_x","step_y","step_z","inMask","rawInt","meanInt","sdInt","maxInt","minInt","distMask")
+          } else if (length(names(tracks_simple))==17) {
+            names(tracks_simple) <- c("track","X","Y","Z","time","frame","step_x","step_y","step_z","inMask","rawInt","normInt","meanInt","sdInt","maxInt","minInt","distMask")
+
+          }          
           segments[[paste0("inMask_gt",k)]] <- tracks_simple_gt$inMask
           segments[[paste0("rawInt_gt",k)]] <- tracks_simple_gt$rawInt
           segments[[paste0("meanInt_gt",k)]] <- tracks_simple_gt$meanInt

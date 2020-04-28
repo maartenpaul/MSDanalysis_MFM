@@ -1,4 +1,3 @@
-data <- segments_all$`WT MMC`
 library(doParallel)
 library(reticulate)
 library(plyr)
@@ -36,17 +35,14 @@ theme_Publication <- function(base_size=14, base_family="sans") {
   
 }
 
-
 scale_fill_Publication <- function(...){
   library(scales)
   discrete_scale("fill","Publication",manual_pal(values = c("#c00000","#6599d9","#1f497d","#542788","#de77ae","#217d68","#6dc5aa")), ...)
-  
 }
 
 scale_colour_Publication <- function(...){
   library(scales)
   discrete_scale("colour","Publication",manual_pal(values = c("#c00000","#6599d9","#1f497d","#542788","#de77ae","#217d68","#6dc5aa")), ...)
-  
 }
 
 ptm <- proc.time()
@@ -206,7 +202,7 @@ for (k in 1:length(segments_all)){
 
 segments_all$`WT MMC`$displacement <- sqrt(segments_all$`WT MMC`$step_x^2+segments_all$`WT MMC`$step_y^2)
 
-data <- subset(segments_all$`WT MMC`,0.1&angle>0&state<2)
+data <- subset(segments_all$`WT MMC`,angle>0&state<2)
 bins <- seq(0,0.5,0.02)
 
 #results <- matrix(nrow = length(bins),ncol = length(bins))
@@ -227,8 +223,24 @@ ggplot(data = results, aes(x=disp1, y=disp2, fill=fold)) +
 #repeat for different ML states
 #repeat for filtered in and out
 
+#making linear line plot of mean displacement
+data <- subset(segments_all$`WT MMC`,angle>0&state<2)
+data$mean_disp <- (data$displacement1+data$displacement2)/2
+
+bins <- seq(0,0.5,0.02)
+
+results <- data.frame("mean_disp"=bins,"fold"=2)
+results <- ddply(results,.variables = c("mean_disp"),function(x){
+  
+  datasub <- subset(data,mean_disp>=x$mean_disp&mean_disp<(x$mean_disp+0.01))
+  x$fold <- length(datasub$angle1[datasub$angle1>165])/length(datasub$angle1[datasub$angle1<15])
+  return(x)
+})
+
+ggplot(results,aes(x=mean_disp,y=fold))+geom_line()+geom_point()+xlab("Mean displacement (um)")+ylab("Fold anisotropy")+ylim(0,5)
+
 segments_all$`WT MMC`$logD_ML <- log10(segments_all$`WT MMC`$D_ML*100)
-data <- subset(segments_all$`WT MMC`,angle>0&state!=2)
+data <- subset(segments_all$`WT MMC`,angle>0&state!=2&inMask==F)
 
 bins_logD <- seq(-4,1,length.out = 25)
 binsize_logD <- bins_logD[2]-bins_logD[1]

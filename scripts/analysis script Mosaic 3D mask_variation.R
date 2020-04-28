@@ -36,7 +36,7 @@ directory <- "/media/DATA/Maarten/data3/"
 condition_list <- list.dirs(directory,full.names = F,recursive = F)
 #condition_list <- condition_list[c(2,3,5)]
 
-msd_analyze_data_mosaic_mask_parallel_intensity(directory,condition_list,framerate,n,fitzero,min_length,pixelsize,fitMSD,offset,max_tracks,dim=dim,groundtruth=TRUE)
+msd_analyze_data_mosaic_mask_parallel_intensity(directory,condition_list[1],framerate,n,fitzero,min_length,pixelsize,fitMSD,offset,max_tracks,dim=dim,groundtruth=TRUE)
 
 load(file.path(directory,"msd_fit_all.Rdata"))
 load(file.path(directory,"segments_all.Rdata"))
