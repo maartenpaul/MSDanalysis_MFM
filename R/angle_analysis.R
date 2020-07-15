@@ -48,7 +48,7 @@ scale_colour_Publication <- function(...){
 ptm <- proc.time()
 #initialize cluster
 nodes <- detectCores()
-cl <- makeCluster(nodes-4)
+cl <- makeCluster(nodes-10)
 registerDoParallel(cl)
 for (j in 1:length(segments_all)){
   segments_all[[j]] <- ddply(segments_all[[j]],.variables = c("cellID"), .parallel = T, function(x){
@@ -224,7 +224,7 @@ ggplot(data = results, aes(x=disp1, y=disp2, fill=fold)) +
 #repeat for filtered in and out
 
 #making linear line plot of mean displacement
-data <- subset(segments_all$`WT MMC`,angle>0&state<2)
+data <- subset(segments_all$`WT MMC`,angle>0&state<2&inMask==T)
 data$mean_disp <- (data$displacement1+data$displacement2)/2
 
 bins <- seq(0,0.5,0.02)
@@ -237,7 +237,7 @@ results <- ddply(results,.variables = c("mean_disp"),function(x){
   return(x)
 })
 
-ggplot(results,aes(x=mean_disp,y=fold))+geom_line()+geom_point()+xlab("Mean displacement (um)")+ylab("Fold anisotropy")+ylim(0,5)
+ggplot(results,aes(x=mean_disp,y=fold,color=inMask))+geom_line()+geom_point()+xlab("Mean displacement (um)")+ylab("Fold anisotropy")+ylim(0,5)+xlim(0,0.4)
 
 segments_all$`WT MMC`$logD_ML <- log10(segments_all$`WT MMC`$D_ML*100)
 data <- subset(segments_all$`WT MMC`,angle>0&state!=2&inMask==F)

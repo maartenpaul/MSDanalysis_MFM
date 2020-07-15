@@ -3,11 +3,6 @@ library(plyr)
 library(lattice)
 library(stats)
 library(MSDtracking)
-library(ggplot2)#required packages
-library(plyr)
-library(lattice)
-library(stats)
-library(MSDtracking)
 library(ggplot2)
 library(ggpol)
 library(doParallel)
@@ -22,21 +17,22 @@ source('python/ML_py.R')
 framerate <- 1/52 #1/200 #1/ms
 n <- 4 #number of timepoints taken into account for MSD fit
 fitzero <- TRUE #should fit go through origin (0,0)
-
 min_length <- 6 #minimum length track
-#pixelsize <- c(1000,1000,1000) #nm
-pixelsize = 1000
+pixelsize <- c(1000,1000,1000) #nm
+#pixelsize = 1000
 fitMSD <- T
 offset <- 4*(0.01)^2 #experimentally determined
 max_tracks <- 500 #maximum number of tracks per frame else exclude tracks from dataset, avoids mislinking of tracks
-dim <- 2 #number of dimensions of tracking
+dim <- 3 #number of dimensions of tracking
 
-directory <- "/media/DATA/Maarten/data3/"
+#directory <- "/media/DATA/Maarten/data3/"
+directory <- "/media/DATA/Maarten/data_gtv2/"
 
 condition_list <- list.dirs(directory,full.names = F,recursive = F)
-#condition_list <- condition_list[c(2,3,5)]
+#condition_list <- condition_list[c(2,3,5)] #use if only certain conditions should be analyzed, otherwise will take all conditions from folder
 
-msd_analyze_data_mosaic_mask_parallel_intensity(directory,condition_list[1],framerate,n,fitzero,min_length,pixelsize,fitMSD,offset,max_tracks,dim=dim,groundtruth=TRUE)
+#import all data and estimate MSD for all tracks
+msd_analyze_data_mosaic_mask_parallel_intensity(directory,condition_list,framerate,n,fitzero,min_length,pixelsize,fitMSD,offset,max_tracks,dim=dim,groundtruth=TRUE)
 
 load(file.path(directory,"msd_fit_all.Rdata"))
 load(file.path(directory,"segments_all.Rdata"))
@@ -47,33 +43,7 @@ for (i in 1:length(msd_fit_all)){
   write_tsv(file.path(directory,paste0(names(msd_fit_all)[i],"_segmentsD.txt")))
 }
 
-#msd_histogram(msd_fit_all,directory,threshold = 0.05)
-
-
-
-#filter <- llply(msd_fit_all[c(6,4,2,5,3,1)],function(x) return(x[x$inMask==T]))
-
-#msd_histogram(llply(msd_fit_all[c(6,4,2,5,3,1)],function(x) return(x[x$inMask==F,])),directory = directory,merge_var = "cellID",threshold = 0.05)
-
-
-# nodes <- detectCores()
-# cl <- makeCluster(nodes-6)
-# registerDoParallel(cl)
-# segments_all <- llply(segments_all,.parallel = TRUE,function(x) {ddply(x,.variables = c("cellID","track"),function(x){
-#   if(nrow(x)>5){
-#     if(any(x$inMask==TRUE)){
-#       x$trackInMask <-TRUE
-#     } else {
-#       x$trackInMask <-FALSE
-# 
-#     }
-#     return(x)
-#   }
-# })})
-# stopCluster(cl)
-
-
-
+#apply machine learning segmentation
 segments_all <- llply(segments_all,function(x){
   ddply(x, .variables = "cellID", function(x){
   ML_segment_tracks(x)
@@ -83,80 +53,211 @@ segments_all <- llply(segments_all,function(x){
 save(segments_all,file=file.path(directory,"segments_all_ML.Rdata"))
 load(file=file.path(directory,"segments_all_ML.Rdata"))
 
-i <- 1
-x <- dlply(segments_all[[i]],.variables = c("cellID","track"), function(x){
+#initialize cluster
+nodes <- detectCores()
+cl <- makeCluster(nodes-16)
+registerDoParallel(cl)
+
+ptm <- proc.time()
+#make tracklet column, based on ML results
+for (j in 1:length(segments_all)){
   
-  return(x$X*10)
-})
-names(x) <- NULL
-
-y <- dlply(segments_all[[i]],.variables = c("cellID","track"), function(x){
-  return(x$Y*10)
-})
-names(y) <- NULL
-
-allStates <- dlply(segments_all[[i]],.variables = c("cellID","track"), function(x){
-  return(x$state)
-})
-names(allStates) <- NULL
-
-
-indices <- daply(segments_all[[i]],.variables = c("cellID"), function(x){
-  return(length(unique(x$track)))
-})
-names(indices) <- NULL
-
-indices <- cumsum(indices)
-
-
-py$x <- x
-py$y <- y 
-py$allStates <- allStates
-py$indices <- indices
-py$pixSize <- 0.12
-py$t <- 0.03
-numPmsd<- 4
-numPmss <- 4
-p <- as.array(seq(from=0.5,to = 6,length.out = 12))
-
-
-source_python("python/make_table.py")
-
-segments_all[[1]] <- ddply(segments_all[[1]],.variables = c("cellID","track"), function(x) {
-  if (nrow(x)>4) {
-    out <- getMSDandMSS(x$X*10,x$Y*10,numPmsd,numPmss,p )
-    
-  }
-})
-
-source_python("python/SMMsplot_as_script.py")
-py_run_string(paste0("plt.savefig('",file.path(directory,condition_list[i],"SMMsplot_all.png"),"')"))
-
-
-
-
-
-
-for (i in 1:length(segments_all)){
-  write_tsv(segments_all[[i]],file.path(directory,paste0(names(segments_all)[i],"_segments.txt")))
+  segments_all[[j]] <- ddply(segments_all[[j]],.variables = c("cellID"),.parallel = T,function(x){
+    ddply(x,.variables = c("track"), .parallel = F, function(x){
+      
+      segment <- 1
+      tracklets <- vector(length=nrow(x))
+      tracklets[1] <- segment
+      
+      for (i in 2:nrow(x)){
+        if(x$state[i]==x$state[i-1]){
+          tracklets[i] <-segment
+        } else {
+          segment <- segment+1
+          tracklets[i] <-segment
+        }
+      }
+      x$tracklet <- paste0(x$track,".",tracklets)
+      
+      return(x)
+      
+    })})
 }
 
+stopCluster(cl)
+proc.time() - ptm
+
+save(segments_all,file=file.path(directory,"segments_all_ML.Rdata"))
+load(file=file.path(directory,"segments_all_ML.Rdata"))
 
 
-segments_all2 <- segments_all
+###calculate angles
+#initialize cluster
+nodes <- detectCores()
+cl <- makeCluster(nodes-20)
+registerDoParallel(cl)
 
-name <- 'WT MMC'
+ptm <- proc.time()
+#calculate angles and displacements
+for (j in 1:length(segments_all)){
+  segments_all[[j]] <- ddply(segments_all[[j]],.variables = c("cellID"), .parallel = T, function(x){
+    get_angles <- function(x,n){
+      x$frame  <- x$frame-x$frame[1]+1
+      angles <- rep(x=-1,nrow(x))
+      if(nrow(x)>=(3*n+n-1)){
+        get_angle_3D <- function(A,B,C){
+          seg_angle <- vector()
+          AB <- B[1:2]-A[1:2]
+          CB <- C[1:2]-B[1:2]
+          
+          #dAB <- sqrt((B[1]-A[1])^2+(B[2]-A[2])^2)
+          #dBC <- sqrt((C[1]-B[1])^2+(C[2]-B[2])^2)
+          #Formula obtained from https://gitlab.com/anders.sejr.hansen/anisotropy
+          angle <- abs(atan2(det(cbind(AB,CB)),AB%*%CB))
+          angle <- angle/pi*180
+          return(angle)
+          
+          
+        } 
+        #loop over all steps of tracks
+        for (k in 1:(nrow(x)-2*n)){
+          
+          if (is.element(x[k,2]+n,x$frame)&&is.element(x[k,2]+2*n,x$frame)){ #check if point is present in track, this deals with gaps
+            x1 <- as.numeric(x[k,c(3,4,6)])
+            which_point1 <- which(x[,2]==x[k,2]+n)
+            x2 <- as.numeric(x[which_point1,c(3,4,6)])
+            which_point2 <- which(x[,2]==x[k,2]+2*n)
+            x3 <- as.numeric(x[which_point2,c(3,4,6)])
+            angles[which_point1] <- get_angle_3D(x1,x2,x3)
+            
+          }}
+      }
+      return(angles)
+    }
+    get_displacements <- function(x,n){
+      x$frame  <- x$frame-x$frame[1]+1
+      displ <- cbind(rep(x=-1,nrow(x)),rep(x=-1,nrow(x)))
+      if(nrow(x)>=(3*n+n-1)){
+        #loop over all steps of tracks
+        for (k in 1:(nrow(x)-2*n)){
+          
+          if (is.element(x[k,2]+n,x$frame)&&is.element(x[k,2]+2*n,x$frame)){ #check if point is present in track, this deals with gaps
+            x1 <- as.numeric(x[k,c(3,4,6)])
+            which_point1 <- which(x[,2]==x[k,2]+n)
+            x2 <- as.numeric(x[which_point1,c(3,4,6)])
+            which_point2 <- which(x[,2]==x[k,2]+2*n)
+            x3 <- as.numeric(x[which_point2,c(3,4,6)])
+            displ[which_point1,] <- c( sqrt((x1[1]-x2[1])^2+(x1[2]-x2[2])^2) ,sqrt((x2[1]-x3[1])^2+(x2[2]-x3[2])^2) )
+            
+          }}
+      }
+      return(displ)
+    }
+    
+    
+    
+    ddply(x,.variables = c("track"), .parallel = F, function(x){
+      
+      
+      
+      x$angle1 <- get_angles(x,1)
+      x[c("displacement1","displacement2")] <- get_displacements(x,1)
+      x$angle2 <- get_angles(x,2)
+      x$angle3 <- get_angles(x,3)
+      x$angle4 <- get_angles(x,4)
+      x$angle5 <- get_angles(x,5)
+      # x$angle6 <- get_angles(x,6)
+      # x$angle7 <- get_angles(x,7)
+      # x$angle8 <- get_angles(x,8)
+      # x$angle9 <- get_angles(x,9)
+      # x$angle10 <- get_angles(x,10)
+      # x$angle11 <- get_angles(x,11)
+      # x$angle12 <- get_angles(x,12)
+      # x$angle13 <- get_angles(x,13)
+      # x$angle14 <- get_angles(x,14)
+      # x$angle15 <- get_angles(x,15)
+      # x$angle16 <- get_angles(x,16)
+      # x$angle17 <- get_angles(x,17)
+      # x$angle18 <- get_angles(x,18)
+      # x$angle19 <- get_angles(x,19)
+      # x$angle20 <- get_angles(x,20)
+      # 
+      
+      return(x)
+      
+    })
+    
+  })
+}
+stopCluster(cl)
+proc.time() - ptm
 
-segments_all[[name]]$displacement <- sqrt(segments_all[[name]]$step_x^2+segments_all[[name]]$step_y^2)
-inputdata <- subset(segments_all[[name]],displacement>0.2&angle>0&inMask==F&state<2)
+save(segments_all,file=file.path(directory,"segments_all_angles.Rdata"))
+load(file=file.path(directory,"segments_all_angles.Rdata"))
 
 
-angles <- hist(c(inputdata$angle,abs(360-inputdata$angle)),breaks = seq(0,360,15),plot=F)
+#calculate MSD and MSS from tracklets
+source_python('python/getMSDandMSS_R.py')
+py$pixSize <- 0.12
+py$t <- 0.03
 
-angles <- data.frame('mids'=angles$mids,'density'=angles$density)
+# MSD_only2 <- function(x,y){
+#   if(length(x)>10){
+#     out <- getMSDandMSS_R(x*10,y*10)
+#     return(out[[1]])
+#   } else {
+#     return(NA)
+#   }
+# }
+
+MSD_MSS2 <- function(x,y){
+  if(length(x)>10){
+    out <- getMSDandMSS_R(x*10,y*10)
+    return(tibble("MSD_ML"=out[[1]],"MSS_ML"=out[[2]]))
+  } else {
+    return(tibble("MSD_ML"=NA,"MSS_ML"=NA))
+  }
+}
+
+#get msd and mss 
+ptm <- proc.time()
+all <- as_tibble(bind_rows(segments_all,.id = "condition")) %>%
+  group_by(condition,.id,tracklet)%>%
+  mutate("data"=list(MSD_MSS2(X,Y)))
+save(all,file=file.path(directory,"all.rdata"))
 
 
-# Plots -------------------------------------------------------------------
+all <- all %>%
+   unnest_legacy(cols=data) %>%
+  ungroup()
+
+save(all,file=file.path(directory,"all.rdata"))
+load(file=file.path(directory,"all.rdata"))
+
+segments_all <- all %>%
+  group_by(condition) %>%
+  group_split() %>%
+  setNames(unique(all$condition))
+
+save(segments_all,file=file.path(directory,"segments_nest.Rdata"))
+load(file=file.path(directory,"segments_nest.Rdata"))
+
+for (i in 1:length(segments_all)){
+  segments_all[[i]]%>%
+    select(-data)%>%
+    write_tsv(file.path(directory,paste0(names(segments_all)[i],"_segmentsD_ML.txt")))
+}
+
+###write to feather format for fast import in Python
+library(feather)
+
+for (i in 1:length(segments_all)){
+  segments_all[[i]]%>%
+    select(-data)%>%
+    write_feather(file.path(directory,paste0(names(segments_all)[i],"_segmentsD_ML.feather")))
+}
+
+### Plots -------------------------------------------------------------------
 theme_Publication <- function(base_size=14, base_family="sans") {
   library(grid)
   library(ggthemes)
@@ -189,7 +290,6 @@ theme_Publication <- function(base_size=14, base_family="sans") {
   
 }
 
-
 scale_fill_Publication <- function(...){
   library(scales)
   discrete_scale("fill","Publication",manual_pal(values = c("#c00000","#6599d9","#1f497d","#542788","#de77ae","#217d68","#6dc5aa")), ...)
@@ -220,7 +320,6 @@ ggplot(data = msd_fit_all$var,aes(x=D,y=..density..)) +
 
 ggplot(angles,aes(x = mids,y=density,fill=density))+geom_bar(stat='identity',width=16) +ylim(c(0,.01))+scale_x_continuous(breaks=seq(0, 350, 45))+coord_polar(start = 0.5*pi,direction = 1)+
   theme(legend.position = "none",text = element_text(size=15))
-
 
 msd_fit_all <- llply(msd_fit_all,function(x){
   x$cellID <- x$.id
