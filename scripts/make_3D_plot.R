@@ -4,12 +4,14 @@ library(dplyr)
 library(plyr)
 
 
-file <- "/media/DATA/Maarten/data/WT MMC/Traj_190312_53bp1_GFP_B2WTG10_MMC_50ms_100_f488int_0001__Ch1_preprocessed_tracks_mask.csv"
+file <- "/media/DATA/Maarten/data/WT MMC/Traj_190312_53bp1_GFP_B2WTG10_MMC_50ms_100_f488int_0001__Ch1_preprocessed_tracks_mask2.csv"
 file <- "/media/DATA/Maarten/data/WT MMC/Traj_190313exp1_53bp1_GFP_B2WTG10_MMC_50ms_100_f488int_0003__Ch1_preprocessed_tracks_mask.csv"
 load("/media/DATA/Maarten/data/msd_fit_all.Rdata")
 
 #load("E:/track_mask/WT MMC/track_stats.Rdata")
 tracks_cell <- read.csv(file,sep = ",",header = T)
+tracks_cell <- subset(segments_all$`WT MMC`,.id==basename(file))
+
 
 #names(tracks_cell) <- c("track", "pos_x", "pos_y","pos_z", "time", "frame", "step_x", "step_y", "step_z", "inMask")
 
@@ -17,9 +19,31 @@ tracks_cell <- read.csv(file,sep = ",",header = T)
 head(tracks_cell)
 
 trackstats <- subset(msd_fit_all$`WT MMC`,.id==basename(file))
+
 trackstats$trackID <- trackstats$track
 
-tracks <- inner_join(trackstats,tracks_cell,by="trackID")
+tracks <- inner_join(trackstats,tracks_cell,by="track")
+
+out <- tracks %>%
+  mutate(X_pix=round(X/20*50),Y_pix=round(Y/20*50)) %>%
+  group_by(X_pix,Y_pix) %>%
+  summarise(mean_logD=mean(logD),n=n(),fraction=sum(state==2)/n())
+library(viridis)
+out %>%
+ggplot(aes(X_pix, Y_pix, fill= mean_logD)) + 
+  geom_tile()+scale_fill_viridis(option = "B")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+                                         panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+out %>%
+  ggplot(aes(X_pix, Y_pix, fill= fraction)) + 
+  geom_tile()+scale_fill_viridis(option = "B")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+                                                     panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+out %>%
+  ggplot(aes(X_pix, Y_pix, fill= n)) + 
+  geom_tile()+scale_fill_viridis(option = "B")+theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+                                                     panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
 
 pixelsize <- c(120,120,410) #nm
 
@@ -28,6 +52,10 @@ tracks$Y <- tracks$pos_y*pixelsize[2]/1000
 tracks$Z <- tracks$pos_z*pixelsize[3]/1000
 
 tracks$logD <- log10(tracks$D)
+
+tracks
+
+
 
 
 minD <- min(tracks$logD,na.rm = T)

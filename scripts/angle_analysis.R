@@ -52,24 +52,25 @@ cl <- makeCluster(nodes-10)
 registerDoParallel(cl)
 for (j in 1:length(segments_all)){
   segments_all[[j]] <- ddply(segments_all[[j]],.variables = c("cellID"), .parallel = T, function(x){
+    get_angle_3D <- function(A,B,C){
+      seg_angle <- vector()
+      AB <- B[1:2]-A[1:2]
+      CB <- C[1:2]-B[1:2]
+      
+      #dAB <- sqrt((B[1]-A[1])^2+(B[2]-A[2])^2)
+      #dBC <- sqrt((C[1]-B[1])^2+(C[2]-B[2])^2)
+      #Formula obtained from https://gitlab.com/anders.sejr.hansen/anisotropy
+      angle <- abs(atan2(det(cbind(AB,CB)),AB%*%CB))
+      angle <- angle/pi*180
+      return(angle)
+      
+      
+    } 
     get_angles <- function(x,n){
       x$frame  <- x$frame-x$frame[1]+1
       angles <- rep(x=-1,nrow(x))
       if(nrow(x)>=(3*n+n-1)){
-        get_angle_3D <- function(A,B,C){
-          seg_angle <- vector()
-          AB <- B[1:2]-A[1:2]
-          CB <- C[1:2]-B[1:2]
-          
-          #dAB <- sqrt((B[1]-A[1])^2+(B[2]-A[2])^2)
-          #dBC <- sqrt((C[1]-B[1])^2+(C[2]-B[2])^2)
-          #Formula obtained from https://gitlab.com/anders.sejr.hansen/anisotropy
-          angle <- abs(atan2(det(cbind(AB,CB)),AB%*%CB))
-          angle <- angle/pi*180
-          return(angle)
-          
-          
-        } 
+        
         #loop over all steps of tracks
         for (k in 1:(nrow(x)-2*n)){
           
@@ -144,6 +145,7 @@ stopCluster(cl)
 proc.time() - ptm
 
 save(segments_all,file=file.path(directory,"segments_all_angles.Rdata"))
+load(file=file.path(directory,"segments_all_angles.Rdata"))
 
 #make a plot
 library(tidyverse)
@@ -155,7 +157,7 @@ for (k in 1:length(segments_all)){
   fold <- tibble("time"=numeric(),"location"=character(),"fold"=numeric())
   
                 
-  for (i in 1:10){
+  for (i in 1:5){
     data3 <- inputdata[inputdata$inMask==1,]
     datasub <- data3[paste0("angle",i)][data3[paste0("angle",i)]>0]
      fold <- add_row(fold,"time"=0.05*i,location='inside',"fold"= length(datasub[datasub>165])/length(datasub[datasub<15]))
@@ -178,7 +180,7 @@ for (k in 1:length(segments_all)){
         geom_vline(xintercept = seq(0, 360-1, by = 45), colour = "black", size = 0.2) +
         scale_x_continuous(breaks=seq(0, 350, 45))+coord_polar(start = 0.5*pi,direction = 1)+
         geom_bar(stat='identity',width=16) +ylim(c(0,.01))+
-        theme_Publication(base_size=18)+ + labs(x=NULL, y=NULL)+
+        theme_Publication(base_size=18)+  labs(x=NULL, y=NULL)+
         theme(legend.position = "none",text = element_text(size=15),axis.text.x = element_text(hjust = -2),axis.text.y=element_blank(),axis.ticks=element_blank(),line = element_blank(),panel.border=element_blank())+
         scale_colour_Publication()
       #scale_fill_Publication()
@@ -237,18 +239,20 @@ results <- ddply(results,.variables = c("mean_disp"),function(x){
   return(x)
 })
 
-ggplot(results,aes(x=mean_disp,y=fold,color=inMask))+geom_line()+geom_point()+xlab("Mean displacement (um)")+ylab("Fold anisotropy")+ylim(0,5)+xlim(0,0.4)
+ggplot(results,aes(x=mean_disp,y=fold))+geom_line()+geom_point()+xlab("Mean displacement (um)")+ylab("Fold anisotropy")+ylim(0,5)+xlim(0,0.4)
 
-segments_all$`WT MMC`$logD_ML <- log10(segments_all$`WT MMC`$D_ML*100)
-data <- subset(segments_all$`WT MMC`,angle>0&state!=2&inMask==F)
+datas <- segs_nest %>%
+  filter(condition=="WT MMC")
+datas$logD_ML <- log10(datas$D_ML*100)
+data <- subset(datas,angle>0&state<2&inMask==F)
 
 bins_logD <- seq(-4,1,length.out = 25)
 binsize_logD <- bins_logD[2]-bins_logD[1]
 bins_Smss <- seq(0,1,length.out = 25)
 binsize_Smss <- bins_Smss[2]-bins_Smss[1]
-results <- data.frame("D_ML"=rep(bins_logD,each=length(bins)),"Smss_ML"=rep(bins_Smss,times=length(bins)),"fold"=0)
-results <- ddply(results,.variables = c("D_ML","Smss_ML"),function(x){
-  datasub <- subset(data,logD_ML>=x$D_ML&logD_ML<(x$D_ML+binsize_logD)&Smss_ML>=x$Smss_ML&Smss_ML<(x$Smss_ML+binsize_Smss))
+results <- data.frame("D_ML"=rep(bins_logD,each=length(bins)),"D_Smmss"=rep(bins_Smss,times=length(bins)),"fold"=0)
+results <- ddply(results,.variables = c("D_ML","D_Smmss"),function(x){
+  datasub <- subset(data,logD_ML>=x$D_ML&logD_ML<(x$D_ML+binsize_logD)&D_Smmss>=x$D_Smmss&D_Smmss<(x$D_Smmss+binsize_Smss))
   x$fold <- length(datasub$angle1[datasub$angle1>165])/length(datasub$angle1[datasub$angle1<15])
   return(x)
 })
@@ -256,6 +260,6 @@ results$fold[is.na(results$fold)] <- 0
 results$fold[is.infinite(results$fold)] <- 0
 
 
-ggplot(data = results, aes(x=D_ML, y=Smss_ML, fill=fold)) + 
+ggplot(data = results, aes(x=D_ML, y=D_Smmss, fill=fold)) + 
   geom_tile()+
   scale_fill_distiller(palette="YlOrBr",direction = 1) + theme_bw()+xlab("log10 Dapp")+ylab("Smss")
