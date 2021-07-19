@@ -113,7 +113,6 @@ py$x <- x
 py$y <- y 
 py$allStates <- allStates
 py$indices <- indices
-py$pixSize <- 0.12
 py$t <- 0.03
 numPmsd<- 4
 numPmss <- 4

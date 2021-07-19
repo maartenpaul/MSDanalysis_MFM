@@ -99,3 +99,5 @@ trnums2  <- out[[9]]
 source_python('python/SMMsplot.py')
 
 
+py_install(c("statsmodels", "seaborn", "pandas", "matplotlib"))
+py_install("scikit-learn")
