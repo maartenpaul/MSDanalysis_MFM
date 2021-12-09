@@ -110,7 +110,7 @@ for (k in 1:length(condition_list)){
   
   #angle plot ALL
   segments_all[[k]]$displacement <- sqrt(segments_all[[k]]$step_x^2+segments_all[[k]]$step_y^2)
-  inputdata <- subset(segments_all[[k]],displacement>0.2&angle>0&state<2)
+  inputdata <- subset(segments_all[[k]],displacement>0.2&angle>0&state>0)
   angles <- hist(c(inputdata$angle,abs(360-inputdata$angle)),breaks = seq(0,360,15),plot=F)
   angles <- data.frame('mids'=angles$mids,'density'=angles$density)
 
@@ -122,7 +122,7 @@ for (k in 1:length(condition_list)){
 
   #angle plot outside
   segments_all[[k]]$displacement <- sqrt(segments_all[[k]]$step_x^2+segments_all[[k]]$step_y^2)
-  inputdata <- subset(segments_all[[k]],displacement>0.2&angle>0&inMask==T&state<2)
+  inputdata <- subset(segments_all[[k]],displacement>0.2&angle>0&inMask==F&state>0)
   angles <- hist(c(inputdata$angle,abs(360-inputdata$angle)),breaks = seq(0,360,15),plot=F)
   angles <- data.frame('mids'=angles$mids,'density'=angles$density)
 
@@ -133,12 +133,13 @@ for (k in 1:length(condition_list)){
   
   #angle plot inside
   segments_all[[k]]$displacement <- sqrt(segments_all[[k]]$step_x^2+segments_all[[k]]$step_y^2)
-  inputdata <- subset(segments_all[[k]],displacement>0.2&angle>0&inMask==T&state<2)
+  inputdata <- subset(segments_all[[k]],displacement>0.2&angle>0&inMask==T&state>0)
   angles <- hist(c(inputdata$angle,abs(360-inputdata$angle)),breaks = seq(0,360,15),plot=F)
   angles <- data.frame('mids'=angles$mids,'density'=angles$density)
   
   plot1 <- ggplot(angles,aes(x = mids,y=density,fill=density))+geom_bar(stat='identity',width=16) +ylim(c(0,.01))+scale_x_continuous(breaks=seq(0, 350, 45))+coord_polar(start = 0.5*pi,direction = 1)+
     theme(legend.position = "none",text = element_text(size=15))
+  plot1
   ggsave(plot1,filename = file.path(directory,condition_list[k],"angleplot_inside.png"))
   ggsave(plot1,filename = file.path(directory,condition_list[k],"angleplot_inside.png"))
   
@@ -159,6 +160,8 @@ for (k in 1:length(condition_list)){
 cellstats <- ldply(msd_fit_all,.id="condition", function(x) ddply(x,.variables = ".id", function(x){
     data.frame("fraction"=length(x$inMask[x$inMask])/length(x$inMask),"Ninside"=length(x$inMask[x$inMask]),"fraction_gt1"=length(x$inMask_gt1[x$inMask_gt1])/length(x$inMask_gt1),"Ninside_gt1"=length(x$inMask_gt1[x$inMask_gt1]),"Ntotal"=length(x$inMask_gt1))
 }))
+
+
 
 
 ggplot(cellstats,aes(x=condition,y=fraction))+geom_bar()

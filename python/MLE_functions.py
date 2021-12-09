@@ -219,6 +219,51 @@ def getMSDandMSS(x, y, numPmsd, numPmss, p, b = 'unknown'):
 
     return diff, MSS, Smss, intercept
 
+def getMSDandMSS3D(x, y, z, numPmsd, numPmss, p, b = 'unknown'):
+
+    # Compute MSD
+    dts = np.arange(1, numPmsd + 1)
+    timemean = dts - dts.mean()
+    sumtsq = sum(timemean ** 2)
+
+    MSD = []
+    for dt in dts:
+        ddt = getDist3D(x, y, z, deltaT = dt)
+        flatD = np.asarray([di ** 2 for Ds in ddt for di in Ds])
+        MSD.append(flatD.mean())
+
+    if b == 'zero':
+        diff = np.array(MSD).mean() / dts.mean() * pixSize ** 2 / t /6
+    else:
+        diff = sum(timemean * (MSD - np.array(MSD).mean())) / sumtsq * pixSize ** 2 / t / 6
+
+    # Compute MSS
+    dts = np.arange(1, numPmss + 1)
+    MSS = []
+
+    for pi in p:
+        logM = []
+        logT = []
+        for dt in dts:
+            ddt = getDist3D(x, y, deltaT = dt)
+            flatD = np.asarray([di for Ds in ddt for di in Ds])
+            logM.append(np.log10((flatD ** pi).mean()))
+            logT.append(np.log10(dt))
+        logTmean = np.array(logT) - np.array(logT).mean()
+        sumLogTsq = sum(logTmean ** 2)
+        logMmean = np.array(logM) - np.array(logM).mean()
+        MSS.append(sum(logTmean * logMmean) / sumLogTsq)
+
+    # Compute Smss and intercept
+    pmean = p - p.mean()
+    sumpsq = sum(pmean ** 2)
+    MSSmean = np.array(MSS) - np.array(MSS).mean()
+    Smss = sum(pmean * MSSmean) / sumpsq
+    intercept = np.array(MSS).mean() - Smss * p.mean()
+
+    return diff, MSS, Smss, intercept
+
+
 def getMSDandMSSandC(x, y, numPmsd, numPmss, p, b = 'unknown'):
 
     # Compute MSD
