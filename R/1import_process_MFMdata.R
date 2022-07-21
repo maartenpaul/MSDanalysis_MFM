@@ -16,6 +16,7 @@ source('R/analysis functions.R')
 source('python/ML_py.R') #returns error 2021
 
 directory <- "D:/Stack/Genetics/data_gtv2"
+directory <- "/media/DATA/Maarten/data_gtv2/"
 condition_list <- list.dirs(directory,full.names = F,recursive = F)
 condition_list
 condition_list <- condition_list[c(8)]
@@ -39,8 +40,6 @@ segments_all <- llply(segments_all,function(x){
     ML_segment_tracks(x)
   })
 })
-
-
 
 #calculate angle displacements
 ptm <- proc.time()
@@ -104,8 +103,7 @@ for (j in 1:length(segments_all)){
       return(displ)
     }
     
-    
-    
+  
     ddply(x,.variables = c("track"), .parallel = F, function(x){
       
       
@@ -178,13 +176,140 @@ minLen <- 10
 
 p <- seq(from=0.5,to=6,length.out=12)
 
-segments_all$`WT MMC` <- ddply(segments_all$`WT MMC`,.variables = c("cellID","tracklet"),.parallel = F,function(x){
-  if(nrow(x)>minLen){
-  getMSDandMSS(x$X,x$Y,numPmsd,numPmss,p)
-  }
-  return(x)
+#calculate MSD and MSS
+####make tracklet column
+for (j in 1:length(segments_all)){
   
-})
-
+  segments_all[[j]] <- ddply(segments_all[[j]],.variables = c("cellID"),.parallel = T,function(x){
+    ddply(x,.variables = c("track"), .parallel = F, function(x){
+      
+      segment <- 1
+      tracklets <- vector(length=nrow(x))
+      tracklets[1] <- segment
+      
+      for (i in 2:nrow(x)){
+        if(x$state[i]==x$state[i-1]){
+          tracklets[i] <-segment
+        } else {
+          segment <- segment+1
+          tracklets[i] <-segment
+        }
+      }
+      x$tracklet <- paste0(x$track,".",tracklets)
+      
+      return(x)
+      
+    })})
+}
 
 stopCluster(cl)
+proc.time() - ptm
+
+save(segments_all,file=file.path(directory,"segments_all_angles.Rdata"))
+
+numPmsd <- 4
+numPmss <- 4
+minLen <- 10
+
+p <- seq(from=0.5,to=6,length.out=12)
+
+for (j in 1:length(segments_all)){
+  
+  segments_all[[j]] <- ddply(segments_all[[j]],.variables = c("cellID"),.parallel = T,function(x){
+    ddply(x,.variables = c("track"), .parallel = F, function(x){
+      if(nrow(x)>minLen){
+        getMSDandMSS(x$X,x$Y,numPmsd,numPmss,p)
+        
+      }
+      
+      
+      return(x)
+      
+    })})
+}
+
+####split tracks in inside outside column
+for (j in 1:length(segments_all)){
+  
+  segments_all[[j]] <- ddply(segments_all[[j]],.variables = c("cellID"),.parallel = T,function(x){
+    ddply(x,.variables = c("track"), .parallel = F, function(x){
+      
+      segment <- 1
+      tracklets <- vector(length=nrow(x))
+      tracklets[1] <- segment
+      
+      for (i in 2:nrow(x)){
+        if(x$inMask[i]==x$inMask[i-1]){
+          tracklets[i] <-segment
+        } else {
+          segment <- segment+1
+          tracklets[i] <-segment
+        }
+      }
+      x$focus_tracklet <- paste0(x$track,".",tracklets)
+      
+      return(x)
+      
+    })})
+}
+
+save(segments_all,file=file.path(directory,"segments_all_angles.Rdata"))
+load(file=file.path(directory,"segments_all_angles.Rdata"))
+
+###get msd and mss from tracklets
+numPmsd <- 4
+numPmss <- 4
+minLen <- 10
+p <- seq(from=0.5,to=6,length.out=12)
+py$pixSize <- 0.100
+py$t <- 0.032
+source_python('python/getMSDandMSS_R.py')
+
+MSD_MSS <- function(x){
+  if(nrow(x)>10){
+    out <- getMSDandMSS_R(x$X,x$Y)
+    return(tibble("D_ML"=out[[1]],"D_Smmss"=out[[2]]))
+  } else {
+    return(tibble("D_ML"=-1.0,"D_Smmss"=-1.0))
+    return(NA)
+  }
+}
+
+MSD_MSS_focus <- function(x){
+  if(nrow(x)>10){
+    out <- getMSDandMSS_R(x$X,x$Y)
+    return(tibble("D_ML_focus"=out[[1]],"D_Smmss_focus"=out[[2]]))
+  } else {
+    return(tibble("D_ML_focus"=-1.0,"D_Smmss_focus"=-1.0))
+    return(NA)
+  }
+}
+
+MSD_only <- function(x){
+  if(nrow(x)>10){
+    out <- getMSDandMSS_R(x$X,x$Y)
+    return(out[[1]])
+  } else {
+    return(NA)
+  }
+}
+
+segments <- ldply(segments_all)
+segs_nest <-segments%>%
+  select(condition,cellID,focus_tracklet,X,Y) %>%
+  group_by(condition,cellID,focus_tracklet) %>%
+  group_modify(~MSD_MSS_focus(.x)) %>%
+  inner_join(y=segments,by=c("condition","cellID","focus_tracklet")) %>%
+  ungroup()
+
+
+segs_nest <- segs_nest %>%
+  select(condition,cellID,tracklet,X,Y) %>%
+  group_by(condition,cellID,tracklet) %>%
+  group_modify(~MSD_MSS(.x),keep=T) %>%
+  inner_join(y=segs_nest,by=c("condition","cellID","tracklet")) 
+
+save(segs_nest,file=file.path(directory,"segs_nest.Rdata"))
+load(file=file.path(directory,"segs_nest.Rdata"))
+
+
