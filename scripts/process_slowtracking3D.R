@@ -19,8 +19,8 @@ offset <- 4*(0.01)^2 #experimentally determined
 max_tracks <- 500 #maximum number of tracks per frame else exclude tracks from dataset, avoids mislinking of tracks
 dim <- 2 #number of dimensions of tracking
 
-#directory <- "D:/OneDrive/Data2/slow_track/"
-directory <- "/media/DATA/Maarten/slow_track2/"
+directory <- "/media/DATA/Maarten/slow_track/"
+#directory <- "/media/DATA/Maarten/slow_track2/"
 
 condition_list <- list.dirs(directory,full.names = F,recursive = F)
 #condition_list <- condition_list[c(1,2)]
@@ -33,6 +33,7 @@ msd_fit_all <- list()
 track_stats_all <- list()
 library(readr)
 
+#load data
 for (i in 1:length(condition_list)){
   segments <- list()
   dir <- file.path(directory,condition_list[i])
@@ -60,17 +61,16 @@ write_delim(ldply(segments_all),file = file.path(directory,"segments_all.txt"))
 load(file=file.path(directory,"segments_all.Rdata"))
 head(segments_all$WT_200)
 
-#calculate track stats; mark in mask if any in track inside
+#calculate track stats; mark in mask if any in segment inside
 stats <- llply(segments_all,function(x) {
   ddply(x,.variables = c("track","cellID"), function(x) {
     data.frame("TrackN"=nrow(x),"inMask"=any(x$inMask==TRUE))
   })
 })
 
-#stats$WT_50$length <- stats$WT_50$TrackN*0.05
-#stats$WT_50 <- stats$WT_50[stats$WT_50$length>=0.010,]
-
-#convert number of frames to time (s)
+#convert number of frames to time (s), filter out short tracks
+stats$WT_50$length <- stats$WT_50$TrackN*0.05
+stats$WT_50 <- stats$WT_50[stats$WT_50$length>=0.010,]
 stats$WT_200$length <- stats$WT_200$TrackN*0.25
 stats$WT_200 <- stats$WT_200[stats$WT_200$length>0.5,]
 stats$WT_1000$length <- stats$WT_1000$TrackN*1.05
@@ -101,15 +101,20 @@ write_delim(ldply(stats),file = file.path(directory,"slow_track_stats.txt"))
 # x3000 <- hist(subset(stats$WT_3000,inMask==FALSE)$length,breaks=seq(0,100,3),add=TRUE,col="green")
 
 ####all
+#create frequency histogram
+x50 <- hist((stats$WT_50)$length,breaks=seq(0,100,0.05),col = "red")
 x200 <- hist((stats$WT_200)$length,breaks=seq(0,100,0.2),col = "red")
 x1000 <- hist((stats$WT_1000)$length,breaks=seq(0,200,1),add=TRUE,col="blue")
 x3000 <- hist((stats$WT_3000)$length,breaks=seq(0,400,3),add=TRUE,col="green")
 
 
-data <- rbind(data.frame("time"=x200$mids+0.05,"density"=rev(cumsum(rev(x200$counts))),tl=0.25),
-              data.frame("time"=x1000$mids+0.05,"density"=rev(cumsum(rev(x1000$counts))),tl=1.05),
-              data.frame("time"=x3000$mids+0.05,"density"=rev(cumsum(rev(x3000$counts))),tl=3.05))
+# data <- rbind(data.frame("time"=x200$mids+0.05,"density"=rev(cumsum(rev(x200$counts))),tl=0.25),
+#               data.frame("time"=x1000$mids+0.05,"density"=rev(cumsum(rev(x1000$counts))),tl=1.05),
+#               data.frame("time"=x3000$mids+0.05,"density"=rev(cumsum(rev(x3000$counts))),tl=3.05))
 
+#make cumulative distriibution, filter out low density
+s50  <- data.frame("time"=x50$mids+0.05,"density"=rev(cumsum(rev(x50$counts))))[-c(1,2,3,4,5),]
+s50 <- s50[s50$density>1,]
 s200  <- data.frame("time"=x200$mids+0.05,"density"=rev(cumsum(rev(x200$counts))))[-c(1,2,3),]
 s200 <- s200[s200$density>1,]
 s1000 <-  data.frame("time"=x1000$mids+0.05,"density"=rev(cumsum(rev(x1000$counts))))[-c(1,2),]
@@ -117,32 +122,25 @@ s1000 <- s1000[s1000$density>1,]
 s3000 <-  data.frame("time"=x3000$mids+0.05,"density"=rev(cumsum(rev(x3000$counts))))[-c(1,2),]
 s3000 <- s3000[s3000$density>1,]
 
-survival_matrix <- matrix(data = 0,nrow=max(c(nrow(s200),nrow(s1000),nrow(s3000))),ncol=6)
-survival_matrix[1:nrow(s200),1:2] <- as.matrix(s200[1:2])
-survival_matrix[1:nrow(s1000),3:4] <- as.matrix(s1000)
+#make matrix to fill data
+survival_matrix <- matrix(data = 0,nrow=max(c(nrow(s50),nrow(s200),nrow(s1000),nrow(s3000))),ncol=8)
+survival_matrix[1:nrow(s50),1:2] <- as.matrix(s50)
+survival_matrix[1:nrow(s200),3:4] <- as.matrix(s200)
+survival_matrix[1:nrow(s1000),5:6] <- as.matrix(s1000)
 
-survival_matrix[1:nrow(s3000),5:6] <- as.matrix(s3000)
+survival_matrix[1:nrow(s3000),7:8] <- as.matrix(s3000)
 
-#data$interval <- as.character(data$tl)
-data <- data[data$density>1,]
-#data <- ddply(data,.variables="interval", function(x){
-#  x$weight <- 1/nrow(x)
-#  return(x)
-#})
-tint = 0.05
-
+#write to file
 write_delim(as.data.frame(survival_matrix),file = file.path(directory,"survival functions_all.txt"),col_names = FALSE)
 
 #inside
+x50 <- hist(subset(stats$WT_50,inMask==TRUE)$length,breaks=seq(0,100,0.05),col = "red")
 x200 <- hist(subset(stats$WT_200,inMask==TRUE)$length,breaks=seq(0,100,0.2),col = "red")
 x1000 <- hist(subset(stats$WT_1000,inMask==TRUE)$length,breaks=seq(0,300,1),add=TRUE,col="blue")
 x3000 <- hist(subset(stats$WT_3000,inMask==TRUE)$length,breaks=seq(0,400,3),add=TRUE,col="green")
 
-
-data <- rbind(data.frame("time"=x200$mids+0.05,"density"=rev(cumsum(rev(x200$counts))),tl=0.25),
-              data.frame("time"=x1000$mids+0.05,"density"=rev(cumsum(rev(x1000$counts))),tl=1.05),
-              data.frame("time"=x3000$mids+0.05,"density"=rev(cumsum(rev(x3000$counts))),tl=3.05))
-
+s50  <- data.frame("time"=x50$mids+0.05,"density"=rev(cumsum(rev(x50$counts))))[-c(1,2,3,4,5),]
+s50 <- s50[s50$density>1,]
 s200  <- data.frame("time"=x200$mids+0.05,"density"=rev(cumsum(rev(x200$counts))))[-c(1,2,3),]
 s200 <- s200[s200$density>1,]
 s1000 <-  data.frame("time"=x1000$mids+0.05,"density"=rev(cumsum(rev(x1000$counts))))[-c(1,2),]
@@ -150,102 +148,41 @@ s1000 <- s1000[s1000$density>1,]
 s3000 <-  data.frame("time"=x3000$mids+0.05,"density"=rev(cumsum(rev(x3000$counts))))[-c(1,2),]
 s3000 <- s3000[s3000$density>1,]
 
-survival_matrix <- matrix(data = 0,nrow=max(c(nrow(s200),nrow(s1000),nrow(s3000))),ncol=6)
-survival_matrix[1:nrow(s200),1:2] <- as.matrix(s200[1:2])
-survival_matrix[1:nrow(s1000),3:4] <- as.matrix(s1000)
+survival_matrix <- matrix(data = 0,nrow=max(c(nrow(s50),nrow(s200),nrow(s1000),nrow(s3000))),ncol=8)
+survival_matrix[1:nrow(s50),1:2] <- as.matrix(s50)
+survival_matrix[1:nrow(s200),3:4] <- as.matrix(s200)
+survival_matrix[1:nrow(s1000),5:6] <- as.matrix(s1000)
 
-survival_matrix[1:nrow(s3000),5:6] <- as.matrix(s3000)
+survival_matrix[1:nrow(s3000),7:8] <- as.matrix(s3000)
 
-#data$interval <- as.character(data$tl)
-data <- data[data$density>1,]
-#data <- ddply(data,.variables="interval", function(x){
-#  x$weight <- 1/nrow(x)
-#  return(x)
-#})
-tint = 0.05
 
 write_delim(as.data.frame(survival_matrix),file = file.path(directory,"survival functions_inside.txt"),col_names = FALSE)
 
+x50 <- hist(subset(stats$WT_50,inMask==FALSE)$length,breaks=seq(0,100,0.05),col = "red")
+x200 <- hist(subset(stats$WT_200,inMask==FALSE)$length,breaks=seq(0,100,0.2),col = "red")
+x1000 <- hist(subset(stats$WT_1000,inMask==FALSE)$length,breaks=seq(0,300,1),add=TRUE,col="blue")
+x3000 <- hist(subset(stats$WT_3000,inMask==FALSE)$length,breaks=seq(0,400,3),add=TRUE,col="green")
 
 
+data <- rbind(data.frame("time"=x200$mids+0.05,"density"=rev(cumsum(rev(x200$counts))),tl=0.25),
+              data.frame("time"=x1000$mids+0.05,"density"=rev(cumsum(rev(x1000$counts))),tl=1.05),
+              data.frame("time"=x3000$mids+0.05,"density"=rev(cumsum(rev(x3000$counts))),tl=3.05))
+
+s50  <- data.frame("time"=x50$mids+0.05,"density"=rev(cumsum(rev(x50$counts))))[-c(1,2,3,4,5),]
+s50 <- s50[s50$density>1,]
+s200  <- data.frame("time"=x200$mids+0.05,"density"=rev(cumsum(rev(x200$counts))))[-c(1,2,3),]
+s200 <- s200[s200$density>1,]
+s1000 <-  data.frame("time"=x1000$mids+0.05,"density"=rev(cumsum(rev(x1000$counts))))[-c(1,2),]
+s1000 <- s1000[s1000$density>1,]
+s3000 <-  data.frame("time"=x3000$mids+0.05,"density"=rev(cumsum(rev(x3000$counts))))[-c(1,2),]
+s3000 <- s3000[s3000$density>1,]
+
+survival_matrix <- matrix(data = 0,nrow=max(c(nrow(s50),nrow(s200),nrow(s1000),nrow(s3000))),ncol=8)
+survival_matrix[1:nrow(s50),1:2] <- as.matrix(s50)
+survival_matrix[1:nrow(s200),3:4] <- as.matrix(s200)
+survival_matrix[1:nrow(s1000),5:6] <- as.matrix(s1000)
+
+survival_matrix[1:nrow(s3000),7:8] <- as.matrix(s3000)
 
 
-#Try using R for non-linear fitting
-library(minpack.lm)
-result <- nlsLM(formula=density~A*exp(-((kb*(tint/tl)+koff1)*time)),
-                start=list(koff1=5,kb=1,A=1),
-                lower=c(0.00001,0,0),upper = c(100,100,10),data = data,trace = T,weights = data$weight)
-
-#formula=density~A*(B*(kb*(tint/tl)+koff1)*exp(-((kb*(tint/tl)+koff1)*time))+
-#                     C*(kb*(tint/tl)+koff2)*exp(-((kb*(tint/tl)+koff2)*time))+
-#                     (1-B-C)*(kb*(tint/tl)+koff3)*exp(-(kb*((tint/tl)+koff3)*time)))
-
-
-#formula=density~A*((B*(kb*(tint/tl)+koff1)*exp(-(kb*(tint/tl)+koff1)*time))+
-#((1-B)*(kb*(tint/tl)+koff2)*exp(-(kb*(tint/tl)+koff2)*time))),
-
-#result <- nlsLM(formula=density~A*(B*exp(-(kb*(tint/tl)+koff1)*time)+(1-B)*exp(-(kb*(tint/tl)+koff2)*time)),
-#                start=list(koff1=0.0001,koff2=1,kb=1,A=2,B=0.5),
-#                lower=c(0.00001,0.5,0.01,0,0),upper = c(30,30,10,5,1),data = data)
-
-result
-
-
-#Try use python scipy  and lmfit to see if it works better
-library(reticulate)
-#use_virtualenv("base")
-scipy <- import("scipy")
-lmfit <- import('lmfit')
-
-py$time <- as.vector(data$time)
-py$density <- as.vector(data$density)
-py$tl <- as.vector(data$tl)
-py$weight <- as.vector(data$weight)
-
-source_python("python/lsqfit.py")
-plot(data$time,data$density,col="black",xlab="track length (seconds)",ylab="frequency",log="xy")
-lines((data$time[data$tl==.05]),(data$density[data$tl==.05]), main = "data",col="red",ylab="log10 density")
-lines((data$time[data$tl==.25]),(data$density[data$tl==.25]), main = "data",col="green",xlab="log10 track length (seconds)",ylab="log10 density")
-lines((data$time[data$tl==1.05]),(data$density[data$tl==1.05]), main = "data",col="blue",xlab="log10 track length (seconds)",ylab="log10 density")
-lines((data$time[data$tl==3.05]),(data$density[data$tl==3.05]), main = "data",col="orange",xlab="log10 track length (seconds)",ylab="log10 density")
-
-plot(data$time,data$density,col="black",xlab="track length (seconds)",ylab="frequency",log="")
-lines((data$time[data$tl==.05]),(data$density[data$tl==.05]), main = "data",col="red",ylab="log10 density")
-lines((data$time[data$tl==.25]),(data$density[data$tl==.25]), main = "data",col="green",xlab="log10 track length (seconds)",ylab="log10 density")
-lines((data$time[data$tl==1.05]),(data$density[data$tl==1.05]), main = "data",col="blue",xlab="log10 track length (seconds)",ylab="log10 density")
-lines((data$time[data$tl==3.05]),(data$density[data$tl==3.05]), main = "data",col="orange",xlab="log10 track length (seconds)",ylab="log10 density")
-
-
-
-lines(log10(data$time[data$tl==.05]), log10(py$model[data$tl==0.05]), col = 1, lwd = 2)
-lines(log10(data$time[data$tl==0.25]), log10(py$model[data$tl==0.25]), col = 2, lwd = 2)
-lines(log10(data$time[data$tl==1.05]), log10(py$model[data$tl==1.05]), col = 3, lwd = 2)
-lines(log10(data$time[data$tl==3.05]), log10(py$model[data$tl==3.05]), col = 4, lwd = 2)
-
-
-
-plot(data$time,data$density, main = "data",col="black")
-
-
-lines(data$time[data$tl==.05], fitted(result)[data$tl==0.05], col = 1, lwd = 2)
-lines(data$time[data$tl==0.25], fitted(result)[data$tl==0.25], col = 2, lwd = 2)
-lines(data$time[data$tl==1.05], fitted(result)[data$tl==1.05], col = 3, lwd = 2)
-lines(data$time[data$tl==3.05], fitted(result)[data$tl==3.05], col = 4, lwd = 2)
-
-lines(log10(data$time[data$tl==.05]), log10(fitted(result)[data$tl==0.05]), col = 1, lwd = 2)
-lines(log10(data$time[data$tl==0.25]), log10(fitted(result)[data$tl==0.25]), col = 2, lwd = 2)
-lines(log10(data$time[data$tl==1.05]), log10(fitted(result)[data$tl==1.05]), col = 3, lwd = 2)
-lines(log10(data$time[data$tl==3.05]), log10(fitted(result)[data$tl==3.05]), col = 4, lwd = 2)
-
-
-lines(data$time[data$tl==.05], py$model[data$tl==0.05], col = 1, lwd = 2)
-lines(data$time[data$tl==0.25], py$model[data$tl==0.25], col = 2, lwd = 2)
-lines(data$time[data$tl==1.05], py$model[data$tl==1.05], col = 3, lwd = 2)
-lines(data$time[data$tl==3.05], py$model[data$tl==3.05], col = 4, lwd = 2)
-
-
-
-
-resFun <- f
-
-nls.lm()
+write_delim(as.data.frame(survival_matrix),file = file.path(directory,"survival functions_outside.txt"),col_names = FALSE)

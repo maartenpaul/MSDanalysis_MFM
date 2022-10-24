@@ -150,31 +150,6 @@ segments_all2 <- as_data_frame(ldply(segments_all))
 segments_all <- segments_all2
 rm(segments_all2)
 
-#add tracklet column
-segments_all <- ddply(segments_all,.variables = c("condition","cellID","track"),.parallel = F,function(x){
-  segment <- 1
-  tracklets <- vector(length=nrow(x))
-  tracklets[1] <- segment
-  
-  for (i in 2:nrow(x)){
-    if(x$state[i]==x$state[i-1]){
-      tracklets[i] <-segment
-    } else {
-      segment <- segment+1
-      tracklets[i] <-segment
-    }
-  }
-  x$tracklet <- paste0(x$track,".",tracklets)
-  
-  return(x)
-  
-  })
-    
-numPmsd <- 4
-numPmss <- 4
-minLen <- 10
-
-p <- seq(from=0.5,to=6,length.out=12)
 
 #calculate MSD and MSS
 ####make tracklet column
@@ -253,6 +228,31 @@ for (j in 1:length(segments_all)){
     })})
 }
 
+####split tracks in inside outside gt1 column
+for (j in 1:length(segments_all)){
+  
+  segments_all[[j]] <- ddply(segments_all[[j]],.variables = c("cellID"),.parallel = T,function(x){
+    ddply(x,.variables = c("track"), .parallel = F, function(x){
+      
+      segment <- 1
+      tracklets <- vector(length=nrow(x))
+      tracklets[1] <- segment
+      
+      for (i in 2:nrow(x)){
+        if(x$inMask_gt1[i]==x$inMask_gt1[i-1]){
+          tracklets[i] <-segment
+        } else {
+          segment <- segment+1
+          tracklets[i] <-segment
+        }
+      }
+      x$focus_tracklet_gt1 <- paste0(x$track,".",tracklets)
+      
+      return(x)
+      
+    })})
+}
+
 save(segments_all,file=file.path(directory,"segments_all_angles.Rdata"))
 load(file=file.path(directory,"segments_all_angles.Rdata"))
 
@@ -285,6 +285,16 @@ MSD_MSS_focus <- function(x){
   }
 }
 
+MSD_MSS_focus_gt1 <- function(x){
+  if(nrow(x)>10){
+    out <- getMSDandMSS_R(x$X,x$Y)
+    return(tibble("D_ML_focus_gt1"=out[[1]],"D_Smmss_focus_gt1"=out[[2]]))
+  } else {
+    return(tibble("D_ML_focus_gt1"=-1.0,"D_Smmss_focus_gt1"=-1.0))
+    return(NA)
+  }
+}
+
 MSD_only <- function(x){
   if(nrow(x)>10){
     out <- getMSDandMSS_R(x$X,x$Y)
@@ -294,19 +304,27 @@ MSD_only <- function(x){
   }
 }
 
-segments <- ldply(segments_all)
-segs_nest <-segments%>%
+segs_nest <- ldply(segments_all)
+segs_nest <-segs_nest%>%
+  filter(condition=="WT MMC")%>%
   select(condition,cellID,focus_tracklet,X,Y) %>%
   group_by(condition,cellID,focus_tracklet) %>%
   group_modify(~MSD_MSS_focus(.x)) %>%
-  inner_join(y=segments,by=c("condition","cellID","focus_tracklet")) %>%
+  inner_join(y=segs_nest,by=c("condition","cellID","focus_tracklet")) %>%
   ungroup()
 
+#gt1
+segs_nest <-segs_nest%>%
+  select(condition,cellID,focus_tracklet_gt1,X,Y) %>%
+  group_by(condition,cellID,focus_tracklet_gt1) %>%
+  group_modify(~MSD_MSS_focus_gt1(.x)) %>%
+  inner_join(y=segs_nest,by=c("condition","cellID","focus_tracklet_gt1")) %>%
+  ungroup()
 
 segs_nest <- segs_nest %>%
   select(condition,cellID,tracklet,X,Y) %>%
   group_by(condition,cellID,tracklet) %>%
-  group_modify(~MSD_MSS(.x),keep=T) %>%
+  group_modify(~MSD_MSS(.x),.keep=T) %>%
   inner_join(y=segs_nest,by=c("condition","cellID","tracklet")) 
 
 save(segs_nest,file=file.path(directory,"segs_nest.Rdata"))

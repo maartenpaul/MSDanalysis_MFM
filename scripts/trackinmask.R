@@ -50,7 +50,7 @@ x<- data %>%
   select(cellID,track,trackInMask)%>%
   distinct()%>%
   group_by(cellID)%>%
-  summarise(n=n(),fraction=sum(trackInMask)/n())
+  dplyr::summarise(n=n(),fraction=sum(trackInMask)/n())
 mean(x$fraction)
 x %>%
   ggplot(aes(y=fraction))+ geom_boxplot()+ylim(0,1)
@@ -59,7 +59,7 @@ x %>%
 
 data %>%
   group_by(cellID)%>%
-  summarise(n=n(),data=sum(inMask)/n(),random=sum(inMask_gt1)/n())%>%
+  dplyr::summarise(n=n(),data=sum(inMask)/n(),random=sum(inMask_gt1)/n())%>%
   melt(id.vars="cellID",measure.vars=c("data","random"))%>%
   ggplot(aes(y=value,x=variable,fill=variable))+ geom_boxplot(outlier.shape = NA,notch = T)+geom_quasirandom()+ylim(0,0.5)+
   scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=16)+ theme(legend.position = "none")+
@@ -67,6 +67,6 @@ data %>%
 
 data %>%
   group_by(cellID)%>%
-  summarise(n=n(),fraction=sum(inMask)/n(),fraction_gt1=sum(inMask_gt1)/n())%>%
+  dplyr::summarise(n=n(),fraction=sum(inMask)/n(),fraction_gt1=sum(inMask_gt1)/n())%>%
   ggplot(aes(y=fraction_gt1))+ geom_boxplot()+ylim(0,0.5)
 

@@ -180,12 +180,12 @@ install.packages("Rmisc")
 library(Rmisc)
 
 # plot fractions of all tracklet per cell per tracklet --------------------------------------------------------------------
-data <- segments %>%
+data <- segs_nest %>%
   filter(condition=="WT MMC") %>%
   #filter out cells with more than 20k tracks
   group_by(cellID)%>%
   summarise(n=length(unique(track))) %>%
-  filter(n<20000) %>%
+  #filter(n<20000) %>%
   left_join(.,segments,by = "cellID") %>%
   #filter out short tracks
   group_by(cellID,track)%>%
@@ -213,7 +213,8 @@ rbind(data %>%
   group_by(labels)%>%
   summarise(var=sd(fraction,na.rm = T)/sqrt(n()),fraction=mean(fraction),state=state[1],trackInMask=trackInMask_gt1[1]))[4:6,] ) %>%
   ggplot(aes(x=labels, fill=labels))+geom_bar(stat="identity",aes(y=fraction))+xlab("")+
-  ylim(0,1)+geom_errorbar(stat="identity",aes(ymax=fraction+var,ymin=fraction-var)) +theme_Publication(base_size=25)+scale_colour_Publication()+scale_fill_Publication()+theme(legend.position = "none",text = element_text(size=15),axis.text.x = element_text(angle = 90))
+  ylim(0,1)+geom_errorbar(stat="identity",aes(ymax=fraction+var,ymin=fraction-var)) +theme_Publication(base_size=25)+scale_colour_Publication()+scale_fill_Publication()+theme(legend.position = "none",text = element_text(size=15),axis.text.x = element_text(angle = 90))+
+  scale_y_continuous(expand=c(0,0))
 
 #plot average lengths of the different states?
 
