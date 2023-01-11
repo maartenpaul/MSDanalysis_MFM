@@ -7,26 +7,9 @@ library(ggplot2)
 library(ggpol)
 
 #input variables
-framerate <- 1/52 #1/200 #1/ms
-n <- 4 #number of timepoints taken into account for MSD fit
-fitzero <- TRUE #should fit go through origin (0,0)
-
-min_length <- 6 #minimum length track
-#pixelsize <- c(1000,1000,1000) #nm
-pixelsize = 1000
-fitMSD <- T
-offset <- 4*(0.01)^2 #experimentally determined
-max_tracks <- 500 #maximum number of tracks per frame else exclude tracks from dataset, avoids mislinking of tracks
-dim <- 2 #number of dimensions of tracking
-
-directory <- "/media/DATA/Maarten/slow_track/"
-#directory <- "/media/DATA/Maarten/slow_track2/"
+directory <- "/media/DATA/Maarten/slow_track2/"
 
 condition_list <- list.dirs(directory,full.names = F,recursive = F)
-#condition_list <- condition_list[c(1,2)]
-
-
-#msd_analyze_data_mosaic_mask(directory,condition_list,framerate,n,fitzero,min_length,pixelsize,fitMSD,offset,max_tracks,dim=dim)
 
 segments_all <- list()
 msd_fit_all <- list()
@@ -70,27 +53,13 @@ stats <- llply(segments_all,function(x) {
 
 #convert number of frames to time (s), filter out short tracks
 stats$WT_50$length <- stats$WT_50$TrackN*0.05
-stats$WT_50 <- stats$WT_50[stats$WT_50$length>=0.010,]
+#stats$WT_50 <- stats$WT_50[stats$WT_50$length>=0.10,]
 stats$WT_200$length <- stats$WT_200$TrackN*0.25
-stats$WT_200 <- stats$WT_200[stats$WT_200$length>0.5,]
+#stats$WT_200 <- stats$WT_200[stats$WT_200$length>0.5,]
 stats$WT_1000$length <- stats$WT_1000$TrackN*1.05
-stats$WT_1000 <- stats$WT_1000[stats$WT_1000$length>2.0,]
+#stats$WT_1000 <- stats$WT_1000[stats$WT_1000$length>2.0,]
 stats$WT_3000$length <- stats$WT_3000$TrackN*3.05
-stats$WT_3000 <- stats$WT_3000[stats$WT_3000$length>5.0,]
-
-# stats$dDBD_200$length <- stats$dDBD_200$TrackN*0.25
-# stats$dDBD_200 <- stats$dDBD_200[stats$dDBD_200$length>0.4,]
-# stats$dDBD_1000$length <- stats$dDBD_1000$TrackN*1.05
-# stats$dDBD_1000 <- stats$dDBD_1000[stats$dDBD_1000$length>2.0,]
-# stats$dDBD_3000$length <- stats$dDBD_3000$TrackN*3.05
-# stats$dDBD_3000 <- stats$dDBD_3000[stats$dDBD_3000$length>6.0,]
-# 
-# stats$dCTD_200$length <- stats$dCTD_200$TrackN*0.25
-# stats$dCTD_200 <- stats$dCTD_200[stats$dCTD_200$length>0.4,]
-# stats$dCTD_1000$length <- stats$dCTD_1000$TrackN*1.05
-# stats$dCTD_1000 <- stats$dCTD_1000[stats$dCTD_1000$length>2.0,]
-# stats$dCTD_3000$length <- stats$dCTD_3000$TrackN*3.05
-# stats$dCTD_3000 <- stats$dCTD_3000[stats$dCTD_3000$length>6.0,]
+#stats$WT_3000 <- stats$WT_3000[stats$WT_3000$length>5.0,]
 
 save(stats,file=file.path(directory,"slow_track_stats.Rdata"))
 write_delim(ldply(stats),file = file.path(directory,"slow_track_stats.txt"))
@@ -103,9 +72,9 @@ write_delim(ldply(stats),file = file.path(directory,"slow_track_stats.txt"))
 ####all
 #create frequency histogram
 x50 <- hist((stats$WT_50)$length,breaks=seq(0,100,0.05),col = "red")
-x200 <- hist((stats$WT_200)$length,breaks=seq(0,100,0.2),col = "red")
-x1000 <- hist((stats$WT_1000)$length,breaks=seq(0,200,1),add=TRUE,col="blue")
-x3000 <- hist((stats$WT_3000)$length,breaks=seq(0,400,3),add=TRUE,col="green")
+x200 <- hist((stats$WT_200)$length,breaks=seq(0,100,0.25),col = "red")
+x1000 <- hist((stats$WT_1000)$length,breaks=seq(0,200,1.05),add=TRUE,col="blue")
+x3000 <- hist((stats$WT_3000)$length,breaks=seq(0,400,3.05),add=TRUE,col="green")
 
 
 # data <- rbind(data.frame("time"=x200$mids+0.05,"density"=rev(cumsum(rev(x200$counts))),tl=0.25),
@@ -113,9 +82,9 @@ x3000 <- hist((stats$WT_3000)$length,breaks=seq(0,400,3),add=TRUE,col="green")
 #               data.frame("time"=x3000$mids+0.05,"density"=rev(cumsum(rev(x3000$counts))),tl=3.05))
 
 #make cumulative distriibution, filter out low density
-s50  <- data.frame("time"=x50$mids+0.05,"density"=rev(cumsum(rev(x50$counts))))[-c(1,2,3,4,5),]
+s50  <- data.frame("time"=x50$mids+0.05,"density"=rev(cumsum(rev(x50$counts))))[-c(1,2,3),]
 s50 <- s50[s50$density>1,]
-s200  <- data.frame("time"=x200$mids+0.05,"density"=rev(cumsum(rev(x200$counts))))[-c(1,2,3),]
+s200  <- data.frame("time"=x200$mids+0.05,"density"=rev(cumsum(rev(x200$counts))))[-c(1,2),]
 s200 <- s200[s200$density>1,]
 s1000 <-  data.frame("time"=x1000$mids+0.05,"density"=rev(cumsum(rev(x1000$counts))))[-c(1,2),]
 s1000 <- s1000[s1000$density>1,]
@@ -127,7 +96,6 @@ survival_matrix <- matrix(data = 0,nrow=max(c(nrow(s50),nrow(s200),nrow(s1000),n
 survival_matrix[1:nrow(s50),1:2] <- as.matrix(s50)
 survival_matrix[1:nrow(s200),3:4] <- as.matrix(s200)
 survival_matrix[1:nrow(s1000),5:6] <- as.matrix(s1000)
-
 survival_matrix[1:nrow(s3000),7:8] <- as.matrix(s3000)
 
 #write to file
@@ -135,9 +103,9 @@ write_delim(as.data.frame(survival_matrix),file = file.path(directory,"survival 
 
 #inside
 x50 <- hist(subset(stats$WT_50,inMask==TRUE)$length,breaks=seq(0,100,0.05),col = "red")
-x200 <- hist(subset(stats$WT_200,inMask==TRUE)$length,breaks=seq(0,100,0.2),col = "red")
-x1000 <- hist(subset(stats$WT_1000,inMask==TRUE)$length,breaks=seq(0,300,1),add=TRUE,col="blue")
-x3000 <- hist(subset(stats$WT_3000,inMask==TRUE)$length,breaks=seq(0,400,3),add=TRUE,col="green")
+x200 <- hist(subset(stats$WT_200,inMask==TRUE)$length,breaks=seq(0,100,0.25),col = "red")
+x1000 <- hist(subset(stats$WT_1000,inMask==TRUE)$length,breaks=seq(0,300,1.05),add=TRUE,col="blue")
+x3000 <- hist(subset(stats$WT_3000,inMask==TRUE)$length,breaks=seq(0,400,3.05),add=TRUE,col="green")
 
 s50  <- data.frame("time"=x50$mids+0.05,"density"=rev(cumsum(rev(x50$counts))))[-c(1,2,3,4,5),]
 s50 <- s50[s50$density>1,]
@@ -159,9 +127,9 @@ survival_matrix[1:nrow(s3000),7:8] <- as.matrix(s3000)
 write_delim(as.data.frame(survival_matrix),file = file.path(directory,"survival functions_inside.txt"),col_names = FALSE)
 
 x50 <- hist(subset(stats$WT_50,inMask==FALSE)$length,breaks=seq(0,100,0.05),col = "red")
-x200 <- hist(subset(stats$WT_200,inMask==FALSE)$length,breaks=seq(0,100,0.2),col = "red")
-x1000 <- hist(subset(stats$WT_1000,inMask==FALSE)$length,breaks=seq(0,300,1),add=TRUE,col="blue")
-x3000 <- hist(subset(stats$WT_3000,inMask==FALSE)$length,breaks=seq(0,400,3),add=TRUE,col="green")
+x200 <- hist(subset(stats$WT_200,inMask==FALSE)$length,breaks=seq(0,100,0.25),col = "red")
+x1000 <- hist(subset(stats$WT_1000,inMask==FALSE)$length,breaks=seq(0,300,1.05),add=TRUE,col="blue")
+x3000 <- hist(subset(stats$WT_3000,inMask==FALSE)$length,breaks=seq(0,400,3.05),add=TRUE,col="green")
 
 
 data <- rbind(data.frame("time"=x200$mids+0.05,"density"=rev(cumsum(rev(x200$counts))),tl=0.25),
@@ -186,3 +154,4 @@ survival_matrix[1:nrow(s3000),7:8] <- as.matrix(s3000)
 
 
 write_delim(as.data.frame(survival_matrix),file = file.path(directory,"survival functions_outside.txt"),col_names = FALSE)
+

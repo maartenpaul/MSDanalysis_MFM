@@ -1,5 +1,7 @@
 #in out analysis
 library(tidyverse)
+
+#state0=fast;state1=slow;state2=immobile
 load("/media/DATA/Maarten/data_gtv2/segments.Rdata")
 theme_Publication <- function(base_size=14, base_family="sans") {
   library(grid)
@@ -63,7 +65,7 @@ real <- data%>%
   group_by(cellID)%>%
   dplyr::summarise(prob=length(inMask_shift[inMask_shift==11])/length(inMask_shift))
 
-real$data <- "real"
+real$data <- "data"
 
 gt1 <- data%>% 
   ungroup() %>%
@@ -90,12 +92,13 @@ gt3 <- data%>%
 gt3$data <- "gt3"
 
 plotdata <- rbind(real,gt1,gt2,gt3)
-plotdata$data <- factor(x = plotdata$data,levels=c("real","gt1","gt2","gt3"))
-plotdata$data[plotdata$data!="real"] <- "gt1"
+plotdata$data <- factor(x = plotdata$data,levels=c("data","gt1","gt2","gt3","random"))
+plotdata$data[plotdata$data!="data"] <- "random"
 
 p <-plotdata%>%
  ggplot(aes(y=prob,x=data,fill=data))+geom_boxplot() + 
-  scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=8)+ theme(legend.position = "none")+xlab("")+ylab("probability")
+  scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=20)+ ylim(0,0.1)+
+  theme(legend.position = "none")+xlab("")+ylab("probability")
 p
 ggsave(p,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/out_in_probability.pdf",width = 10,height = 10,units = "cm")
 (real$prob-mean(c(gt1$prob,gt2$prob,gt3$prob)))/sd(c(gt1$prob,gt2$prob,gt3$prob))
@@ -107,7 +110,7 @@ real <- data%>%
   filter(distMask==0,state!=2,inMask_shift!="-1-1"&inMask_shift!="0-1"&inMask_shift!="1-1")%>%
   group_by(cellID)%>%
   dplyr::summarise(prob=length(inMask_shift[inMask_shift=="00"])/length(inMask_shift))
-real$data <- "real"
+real$data <- "data"
 
 gt1 <- data%>% 
   ungroup() %>%
@@ -116,14 +119,30 @@ gt1 <- data%>%
   dplyr::summarise(prob=length(inMask_gt1_shift[inMask_gt1_shift=="00"])/length(inMask_gt1_shift))
 gt1$data <- "gt1"
 
+gt2 <- data%>% 
+  ungroup() %>%
+  filter(distMask_gt2==0,state!=2,inMask_gt2_shift!="-1-1"&inMask_gt2_shift!="0-1"&inMask_gt2_shift!="1-1")%>%
+  group_by(cellID)%>%
+  dplyr::summarise(prob=length(inMask_gt2_shift[inMask_gt2_shift=="00"])/length(inMask_gt2_shift))
+gt2$data <- "gt2"
 
-plotdata <- rbind(real,gt1)
-plotdata$data <- factor(x = plotdata$data,levels=c("real","gt1","gt2","gt3"))
+gt3 <- data%>% 
+  ungroup() %>%
+  filter(distMask_gt3==0,state!=2,inMask_gt3_shift!="-1-1"&inMask_gt3_shift!="0-1"&inMask_gt3_shift!="1-1")%>%
+  group_by(cellID)%>%
+  dplyr::summarise(prob=length(inMask_gt3_shift[inMask_gt3_shift=="00"])/length(inMask_gt3_shift))
+gt3$data <- "gt3"
+
+
+plotdata <- rbind(real,gt1,gt2,gt3)
+plotdata$data <- factor(x = plotdata$data,levels=c("data","gt1","gt2","gt3","random"))
+plotdata$data[plotdata$data!="data"] <- "random"
 
 p <- ggplot(plotdata,aes(y=prob,x=data,fill=data))+geom_boxplot()+ 
-  scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=8)+ theme(legend.position = "none")+xlab("")+ylab("probability")
+  scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=20)+ylim(0,1)+
+  theme(legend.position = "none")+xlab("")+ylab("probability")
 p
-ggsave(p,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/out_in_probability.pdf",width = 10,height = 10,units = "cm")
+ggsave(p,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/in_out_probability.pdf",width = 10,height = 10,units = "cm")
 
 
 #in -> out slow
@@ -133,7 +152,7 @@ real <- data%>%
   filter(distMask==0,state==1,inMask_shift!="-1-1"&inMask_shift!="0-1"&inMask_shift!="1-1")%>%
   group_by(cellID)%>%
   dplyr::summarise(prob=length(inMask_shift[inMask_shift=="00"])/length(inMask_shift))
-real$data <- "real"
+real$data <- "data"
 
 gt1 <- data%>% 
   ungroup() %>%
@@ -142,39 +161,69 @@ gt1 <- data%>%
   dplyr::summarise(prob=length(inMask_gt1_shift[inMask_gt1_shift=="00"])/length(inMask_gt1_shift))
 gt1$data <- "gt1"
 
+gt2 <- data%>% 
+  ungroup() %>%
+  filter(distMask_gt2==0,state==1,inMask_gt2_shift!="-1-1"&inMask_gt2_shift!="0-1"&inMask_gt2_shift!="1-1")%>%
+  group_by(cellID)%>%
+  dplyr::summarise(prob=length(inMask_gt2_shift[inMask_gt2_shift=="00"])/length(inMask_gt2_shift))
+gt2$data <- "gt2"
 
-plotdata <- rbind(real,gt1)
-plotdata$data <- factor(x = plotdata$data,levels=c("real","gt1","gt2","gt3"))
+gt3 <- data%>% 
+  ungroup() %>%
+  filter(distMask_gt3==0,state==1,inMask_gt3_shift!="-1-1"&inMask_gt3_shift!="0-1"&inMask_gt3_shift!="1-1")%>%
+  group_by(cellID)%>%
+  dplyr::summarise(prob=length(inMask_gt3_shift[inMask_gt3_shift=="00"])/length(inMask_gt3_shift))
+gt3$data <- "gt3"
+
+plotdata <- rbind(real,gt1,gt2,gt3)
+plotdata$data <- factor(x = plotdata$data,levels=c("data","gt1","gt2","gt3","random"))
+plotdata$data[plotdata$data!="data"] <- "random"
+
 
 p <- ggplot(plotdata,aes(y=prob,x=data,fill=data))+geom_boxplot()+ 
-  scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=8)+ theme(legend.position = "none")+xlab("")+ylab("probability")
+  scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=20)+ theme(legend.position = "none")+ylim(0,1)+xlab("")+ylab("probability")
 p
-ggsave(p,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/out_in_probability_slow.pdf",width = 10,height = 10,units = "cm")
+ggsave(p,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/in_out_probability_slow.pdf",width = 10,height = 10,units = "cm")
 
 #in -> out fast
 
 real <- data%>% 
   ungroup() %>%
-  filter(distMask==0,state==2,inMask_shift!="-1-1"&inMask_shift!="0-1"&inMask_shift!="1-1")%>%
+  filter(distMask==0,state==0,inMask_shift!="-1-1"&inMask_shift!="0-1"&inMask_shift!="1-1")%>%
   group_by(cellID)%>%
   dplyr::summarise(prob=length(inMask_shift[inMask_shift=="00"])/length(inMask_shift))
-real$data <- "real"
+real$data <- "data"
 
 gt1 <- data%>% 
   ungroup() %>%
-  filter(distMask_gt1==0,state==2,inMask_gt1_shift!="-1-1"&inMask_gt1_shift!="0-1"&inMask_gt1_shift!="1-1")%>%
+  filter(distMask_gt1==0,state==0,inMask_gt1_shift!="-1-1"&inMask_gt1_shift!="0-1"&inMask_gt1_shift!="1-1")%>%
   group_by(cellID)%>%
   dplyr::summarise(prob=length(inMask_gt1_shift[inMask_gt1_shift=="00"])/length(inMask_gt1_shift))
 gt1$data <- "gt1"
 
 
-plotdata <- rbind(real,gt1)
-plotdata$data <- factor(x = plotdata$data,levels=c("real","gt1","gt2","gt3"))
+gt2 <- data%>% 
+  ungroup() %>%
+  filter(distMask_gt2==0,state==0,inMask_gt2_shift!="-1-1"&inMask_gt2_shift!="0-1"&inMask_gt2_shift!="1-1")%>%
+  group_by(cellID)%>%
+  dplyr::summarise(prob=length(inMask_gt2_shift[inMask_gt2_shift=="00"])/length(inMask_gt2_shift))
+gt2$data <- "gt2"
+
+gt3 <- data%>% 
+  ungroup() %>%
+  filter(distMask_gt3==0,state==0,inMask_gt3_shift!="-1-1"&inMask_gt3_shift!="0-1"&inMask_gt3_shift!="1-1")%>%
+  group_by(cellID)%>%
+  dplyr::summarise(prob=length(inMask_gt3_shift[inMask_gt3_shift=="00"])/length(inMask_gt3_shift))
+gt3$data <- "gt3"
+
+plotdata <- rbind(real,gt1,gt2,gt3)
+plotdata$data <- factor(x = plotdata$data,levels=c("data","gt1","gt2","gt3","random"))
+plotdata$data[plotdata$data!="data"] <- "random"
 
 p <- ggplot(plotdata,aes(y=prob,x=data,fill=data))+geom_boxplot()+ 
-  scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=8)+ theme(legend.position = "none")+xlab("")+ylab("probability")
+  scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=20)+ theme(legend.position = "none")+xlab("")+ylab("probability")+ylim(0,1)
 p
-ggsave(p,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/out_in_probability_fast.pdf",width = 10,height = 10,units = "cm")
+ggsave(p,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/in_out_probability_fast.pdf",width = 10,height = 10,units = "cm")
 
 
 
