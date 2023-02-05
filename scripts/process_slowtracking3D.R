@@ -7,7 +7,7 @@ library(ggplot2)
 library(ggpol)
 
 #input variables
-directory <- "/media/DATA/Maarten/slow_track2/"
+directory <- "/media/DATA/Maarten/MFM/slow_track2/"
 
 condition_list <- list.dirs(directory,full.names = F,recursive = F)
 
@@ -154,4 +154,59 @@ survival_matrix[1:nrow(s3000),7:8] <- as.matrix(s3000)
 
 
 write_delim(as.data.frame(survival_matrix),file = file.path(directory,"survival functions_outside.txt"),col_names = FALSE)
+
+#exp1
+
+x50 <- hist(subset(stats$WT_50[!grepl(pattern = "exp2" , stats$WT_50$cellID),])$length,breaks=seq(0,100,0.05),col = "red")
+x200 <- hist(stats$WT_200[!grepl(pattern = "exp2" , stats$WT_200$cellID),]$length,breaks=seq(0,100,0.25),col = "red")
+x1000 <- hist(stats$WT_1000[!grepl(pattern = "exp2" , stats$WT_1000$cellID),]$length,breaks=seq(0,300,1.05),add=TRUE,col="blue")
+x3000 <- hist(stats$WT_3000[!grepl(pattern = "exp2" , stats$WT_3000$cellID),]$length,breaks=seq(0,400,3.05),add=TRUE,col="green")
+
+s50  <- data.frame("time"=x50$mids+0.05,"density"=rev(cumsum(rev(x50$counts))))[-c(1,2,3,4,5),]
+s50 <- s50[s50$density>1,]
+s200  <- data.frame("time"=x200$mids+0.05,"density"=rev(cumsum(rev(x200$counts))))[-c(1,2,3),]
+s200 <- s200[s200$density>1,]
+s1000 <-  data.frame("time"=x1000$mids+0.05,"density"=rev(cumsum(rev(x1000$counts))))[-c(1,2),]
+s1000 <- s1000[s1000$density>1,]
+s3000 <-  data.frame("time"=x3000$mids+0.05,"density"=rev(cumsum(rev(x3000$counts))))[-c(1,2),]
+s3000 <- s3000[s3000$density>1,]
+
+survival_matrix <- matrix(data = 0,nrow=max(c(nrow(s50),nrow(s200),nrow(s1000),nrow(s3000))),ncol=8)
+survival_matrix[1:nrow(s50),1:2] <- as.matrix(s50)
+survival_matrix[1:nrow(s200),3:4] <- as.matrix(s200)
+survival_matrix[1:nrow(s1000),5:6] <- as.matrix(s1000)
+
+survival_matrix[1:nrow(s3000),7:8] <- as.matrix(s3000)
+
+
+write_delim(as.data.frame(survival_matrix),file = file.path(directory,"survival functions_exp1.txt"),col_names = FALSE)
+
+#exp2
+
+x50 <- hist(subset(stats$WT_50[grepl(pattern = "exp2" , stats$WT_50$cellID),])$length,breaks=seq(0,100,0.05),col = "red")
+x200 <- hist(stats$WT_200[grepl(pattern = "exp2" , stats$WT_200$cellID),]$length,breaks=seq(0,100,0.25),col = "red")
+x1000 <- hist(stats$WT_1000[grepl(pattern = "exp2" , stats$WT_1000$cellID),]$length,breaks=seq(0,300,1.05),add=TRUE,col="blue")
+x3000 <- hist(stats$WT_3000[grepl(pattern = "exp2" , stats$WT_3000$cellID),]$length,breaks=seq(0,400,3.05),add=TRUE,col="green")
+
+s50  <- data.frame("time"=x50$mids+0.05,"density"=rev(cumsum(rev(x50$counts))))[-c(1,2,3,4,5),]
+s50 <- s50[s50$density>1,]
+s200  <- data.frame("time"=x200$mids+0.05,"density"=rev(cumsum(rev(x200$counts))))[-c(1,2,3),]
+s200 <- s200[s200$density>1,]
+s1000 <-  data.frame("time"=x1000$mids+0.05,"density"=rev(cumsum(rev(x1000$counts))))[-c(1,2),]
+s1000 <- s1000[s1000$density>1,]
+s3000 <-  data.frame("time"=x3000$mids+0.05,"density"=rev(cumsum(rev(x3000$counts))))[-c(1,2),]
+s3000 <- s3000[s3000$density>1,]
+
+survival_matrix <- matrix(data = 0,nrow=max(c(nrow(s50),nrow(s200),nrow(s1000),nrow(s3000))),ncol=8)
+survival_matrix[1:nrow(s50),1:2] <- as.matrix(s50)
+survival_matrix[1:nrow(s200),3:4] <- as.matrix(s200)
+survival_matrix[1:nrow(s1000),5:6] <- as.matrix(s1000)
+
+survival_matrix[1:nrow(s3000),7:8] <- as.matrix(s3000)
+
+
+write_delim(as.data.frame(survival_matrix),file = file.path(directory,"survival functions_exp2.txt"),col_names = FALSE)
+
+
+
 

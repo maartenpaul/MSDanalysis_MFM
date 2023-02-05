@@ -179,17 +179,17 @@ segments %>%
 install.packages("Rmisc")
 library(Rmisc)
 
-# plot fractions of all tracklet per cell per tracklet --------------------------------------------------------------------
+# plot fractions of all tracklets per cell --------------------------------------------------------------------
 data <- segs_nest %>%
   filter(condition=="WT MMC") %>%
   #filter out cells with more than 20k tracks
   group_by(cellID)%>%
-  summarise(n=length(unique(track))) %>%
+  dplyr::summarise(n=length(unique(track))) %>%
   #filter(n<20000) %>%
   left_join(.,segments,by = "cellID") %>%
   #filter out short tracks
   group_by(cellID,track)%>%
-  summarise(n=n())%>%
+  dplyr:: summarise(n=n())%>%
   filter(n>5) %>%
   left_join(.,segments,by = c("cellID","track"))
  
@@ -202,7 +202,7 @@ rbind(data %>%
   mutate(labels=paste0(c("outside","inside")[trackInMask+1],"_",c("fast","slow",'immobile')[state+1]))%>%
   mutate(labels=factor(labels,levels=c("outside_immobile","outside_slow","outside_fast","inside_immobile","inside_slow","inside_fast")))%>%
   group_by(labels)%>%
-  summarise(var=sd(fraction,na.rm = T)/sqrt(n()),fraction=mean(fraction),state=state[1],trackInMask=trackInMask[1]),
+  dplyr::summarise(var=sd(fraction,na.rm = T)/sqrt(n()),fraction=mean(fraction),state=state[1],trackInMask=trackInMask[1]),
   (data%>%
   group_by(.id,trackInMask_gt1,state)%>%
   dplyr::summarise(n=n_distinct(tracklet)) %>%
@@ -211,7 +211,7 @@ rbind(data %>%
   mutate(labels=paste0(c("outside","inside_GT")[trackInMask_gt1+1],"_",c("fast","slow",'immobile')[state+1]))%>%
   mutate(labels=factor(labels,levels=c("outside_immobile","outside_slow","outside_fast","inside_GT_immobile","inside_GT_slow","inside_GT_fast")))%>%
   group_by(labels)%>%
-  summarise(var=sd(fraction,na.rm = T)/sqrt(n()),fraction=mean(fraction),state=state[1],trackInMask=trackInMask_gt1[1]))[4:6,] ) %>%
+  dplyr::summarise(var=sd(fraction,na.rm = T)/sqrt(n()),fraction=mean(fraction),state=state[1],trackInMask=trackInMask_gt1[1]))[4:6,] ) %>%
   ggplot(aes(x=labels, fill=labels))+geom_bar(stat="identity",aes(y=fraction))+xlab("")+
   ylim(0,1)+geom_errorbar(stat="identity",aes(ymax=fraction+var,ymin=fraction-var)) +theme_Publication(base_size=25)+scale_colour_Publication()+scale_fill_Publication()+theme(legend.position = "none",text = element_text(size=15),axis.text.x = element_text(angle = 90))+
   scale_y_continuous(expand=c(0,0))
