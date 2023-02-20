@@ -2,7 +2,16 @@
 library(tidyverse)
 
 #state0=fast;state1=slow;state2=immobile
-load("/media/DATA/Maarten/data_gtv2/segments.Rdata")
+#input variables
+directory <- "/media/DATA/Maarten/data_gtv2/"
+
+condition_list <- list.dirs(directory,full.names = F,recursive = F)
+#condition_list <- condition_list[c(2,3,5)]
+
+load(file=file.path(directory,"segs_nest.Rdata"))
+
+segments <- dplyr::filter(segs_nest,condition=="WT MMC")
+
 theme_Publication <- function(base_size=14, base_family="sans") {
   library(grid)
   library(ggthemes)
@@ -51,7 +60,7 @@ data <- segments %>%
   filter(n>5) %>%
   left_join(.,segments,by = c("cellID","track"))%>%
   group_by(cellID,track)%>%
-  mutate(inMask_shift=paste0(c(inMask[2:length(inMask)],-1),c(inMask[3:length(inMask)],-1,-1)),
+  dplyr::mutate(inMask_shift=paste0(c(inMask[2:length(inMask)],-1),c(inMask[3:length(inMask)],-1,-1)),
          inMask_gt1_shift=paste0(c(inMask_gt1[2:length(inMask_gt1)],-1),c(inMask_gt1[3:length(inMask_gt1)],-1,-1)),
          inMask_gt2_shift=paste0(c(inMask_gt2[2:length(inMask_gt2)],-1),c(inMask_gt2[3:length(inMask_gt2)],-1,-1)),
          inMask_gt3_shift=paste0(c(inMask_gt3[2:length(inMask_gt3)],-1),c(inMask_gt3[3:length(inMask_gt3)],-1,-1)))
@@ -96,7 +105,7 @@ plotdata$data <- factor(x = plotdata$data,levels=c("data","gt1","gt2","gt3","ran
 plotdata$data[plotdata$data!="data"] <- "random"
 
 p <-plotdata%>%
- ggplot(aes(y=prob,x=data,fill=data))+geom_boxplot() + 
+ ggplot(aes(y=prob,x=data,fill=data))+geom_boxplot()+geom_quasirandom() + 
   scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=20)+ ylim(0,0.1)+
   theme(legend.position = "none")+xlab("")+ylab("probability")
 p
@@ -138,7 +147,7 @@ plotdata <- rbind(real,gt1,gt2,gt3)
 plotdata$data <- factor(x = plotdata$data,levels=c("data","gt1","gt2","gt3","random"))
 plotdata$data[plotdata$data!="data"] <- "random"
 
-p <- ggplot(plotdata,aes(y=prob,x=data,fill=data))+geom_boxplot()+ 
+p <- ggplot(plotdata,aes(y=prob,x=data,fill=data))+geom_boxplot()+geom_quasirandom()+ 
   scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=20)+ylim(0,1)+
   theme(legend.position = "none")+xlab("")+ylab("probability")
 p
@@ -180,7 +189,7 @@ plotdata$data <- factor(x = plotdata$data,levels=c("data","gt1","gt2","gt3","ran
 plotdata$data[plotdata$data!="data"] <- "random"
 
 
-p <- ggplot(plotdata,aes(y=prob,x=data,fill=data))+geom_boxplot()+ 
+p <- ggplot(plotdata,aes(y=prob,x=data,fill=data))+geom_boxplot()+geom_quasirandom()+ 
   scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=20)+ theme(legend.position = "none")+ylim(0,1)+xlab("")+ylab("probability")
 p
 ggsave(p,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/in_out_probability_slow.pdf",width = 10,height = 10,units = "cm")
@@ -220,16 +229,12 @@ plotdata <- rbind(real,gt1,gt2,gt3)
 plotdata$data <- factor(x = plotdata$data,levels=c("data","gt1","gt2","gt3","random"))
 plotdata$data[plotdata$data!="data"] <- "random"
 
-p <- ggplot(plotdata,aes(y=prob,x=data,fill=data))+geom_boxplot()+ 
+p <- ggplot(plotdata,aes(y=prob,x=data,fill=data))+geom_boxplot()+geom_quasirandom()+ 
   scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=20)+ theme(legend.position = "none")+xlab("")+ylab("probability")+ylim(0,1)
 p
 ggsave(p,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/in_out_probability_fast.pdf",width = 10,height = 10,units = "cm")
 
 
 
-#diffusion distance map
-data <- segments %>%
-  filter(condition=="WT MMC")
 
-bins <- seq(0,2,0.1)
 

@@ -13,14 +13,20 @@ library(doParallel)
 source('R/MSD.R')
 source('R/MSD_fit.R')
 source('R/analysis functions.R')
-source('python/ML_py.R') #returns error 2021
+source('python/ML_py.R')
 
-directory <- "D:/Stack/Genetics/data_gtv2"
-directory <- "/media/DATA/Maarten/data_gtv2/"
+#input variables
+framerate <- 1/52 #1/200 #1/ms
+n <- 4 #number of timepoints taken into account for MSD fit
+fitzero <- TRUE #should fit go through origin (0,0)
+pixelsize = 1000
+fitMSD <- T
+offset <- 4*(0.01)^2 #experimentally determined
+max_tracks <- 500 #maximum number of tracks per frame else exclude tracks from dataset, avoids mislinking of tracks
+dim <- 2 #number of dimensions of tracking
+
+directory <- "/media/DATA/Maarten/MFM/data_gtv2/"
 condition_list <- list.dirs(directory,full.names = F,recursive = F)
-condition_list
-condition_list <- condition_list[c(8)]
-#condition_list <- condition_list[c(2,3,5)]
 
 #import data organize in lists of the different data sets
 msd_analyze_data_mosaic_mask_parallel_intensity(directory,condition_list,framerate,n,fitzero,min_length,pixelsize,fitMSD,offset,max_tracks,dim=dim,groundtruth=TRUE)
@@ -144,15 +150,10 @@ save(segments_all,file=file.path(directory,"segments_all_angles.Rdata"))
 load(file=file.path(directory,"segments_all_angles.Rdata"))
 
 
-######
+#######calculate MSD and MSS
+####add tracklet column
+segments_all <- as_data_frame(ldply(segments_all))
 
-segments_all2 <- as_data_frame(ldply(segments_all))
-segments_all <- segments_all2
-rm(segments_all2)
-
-
-#calculate MSD and MSS
-####make tracklet column
 for (j in 1:length(segments_all)){
   
   segments_all[[j]] <- ddply(segments_all[[j]],.variables = c("cellID"),.parallel = T,function(x){
@@ -181,27 +182,6 @@ stopCluster(cl)
 proc.time() - ptm
 
 save(segments_all,file=file.path(directory,"segments_all_angles.Rdata"))
-
-numPmsd <- 4
-numPmss <- 4
-minLen <- 10
-
-p <- seq(from=0.5,to=6,length.out=12)
-
-for (j in 1:length(segments_all)){
-  
-  segments_all[[j]] <- ddply(segments_all[[j]],.variables = c("cellID"),.parallel = T,function(x){
-    ddply(x,.variables = c("track"), .parallel = F, function(x){
-      if(nrow(x)>minLen){
-        getMSDandMSS(x$X,x$Y,numPmsd,numPmss,p)
-        
-      }
-      
-      
-      return(x)
-      
-    })})
-}
 
 ####split tracks in inside outside column
 for (j in 1:length(segments_all)){
@@ -259,14 +239,14 @@ load(file=file.path(directory,"segments_all_angles.Rdata"))
 ###get msd and mss from tracklets
 numPmsd <- 4
 numPmss <- 4
-minLen <- 10
+minLen <- 5
 p <- seq(from=0.5,to=6,length.out=12)
 py$pixSize <- 0.100
-py$t <- 0.032
+py$t <- 0.052
 source_python('python/getMSDandMSS_R.py')
 
 MSD_MSS <- function(x){
-  if(nrow(x)>10){
+  if(nrow(x)>minLen){
     out <- getMSDandMSS_R(x$X,x$Y)
     return(tibble("D_ML"=out[[1]],"D_Smmss"=out[[2]]))
   } else {
@@ -276,7 +256,7 @@ MSD_MSS <- function(x){
 }
 
 MSD_MSS_focus <- function(x){
-  if(nrow(x)>10){
+  if(nrow(x)>minLen){
     out <- getMSDandMSS_R(x$X,x$Y)
     return(tibble("D_ML_focus"=out[[1]],"D_Smmss_focus"=out[[2]]))
   } else {
@@ -286,7 +266,7 @@ MSD_MSS_focus <- function(x){
 }
 
 MSD_MSS_focus_gt1 <- function(x){
-  if(nrow(x)>10){
+  if(nrow(x)>minLen){
     out <- getMSDandMSS_R(x$X,x$Y)
     return(tibble("D_ML_focus_gt1"=out[[1]],"D_Smmss_focus_gt1"=out[[2]]))
   } else {
@@ -296,7 +276,7 @@ MSD_MSS_focus_gt1 <- function(x){
 }
 
 MSD_only <- function(x){
-  if(nrow(x)>10){
+  if(nrow(x)>minLen){
     out <- getMSDandMSS_R(x$X,x$Y)
     return(out[[1]])
   } else {
@@ -327,7 +307,14 @@ segs_nest <- segs_nest %>%
   group_modify(~MSD_MSS(.x),.keep=T) %>%
   inner_join(y=segs_nest,by=c("condition","cellID","tracklet")) 
 
+segs_nest$condition <- droplevels(segs_nest$condition)
+
 save(segs_nest,file=file.path(directory,"segs_nest.Rdata"))
+segs_nest %>%
+  nest(-.id) %>%
+  pwalk(~write_delim(x = .y, file = file.path(directory,paste0(.x, ".txt") )) )
+  
+write_delim(segs_nest,file = file.path(directory,"segs_nest.txt"))
 load(file=file.path(directory,"segs_nest.Rdata"))
 
 

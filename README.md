@@ -5,4 +5,5 @@ e.g. data processed in Matlab use the following scripts: https://github.com/maar
 
 ## Installation
 Program works most convenient in Rstudio
+
 Download the content of the repository to your computer
