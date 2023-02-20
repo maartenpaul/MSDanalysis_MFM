@@ -105,7 +105,7 @@ plotdata$data <- factor(x = plotdata$data,levels=c("data","gt1","gt2","gt3","ran
 plotdata$data[plotdata$data!="data"] <- "random"
 
 p <-plotdata%>%
- ggplot(aes(y=prob,x=data,fill=data))+geom_boxplot() + 
+ ggplot(aes(y=prob,x=data,fill=data))+geom_boxplot()+geom_quasirandom() + 
   scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=20)+ ylim(0,0.1)+
   theme(legend.position = "none")+xlab("")+ylab("probability")
 p
@@ -147,7 +147,7 @@ plotdata <- rbind(real,gt1,gt2,gt3)
 plotdata$data <- factor(x = plotdata$data,levels=c("data","gt1","gt2","gt3","random"))
 plotdata$data[plotdata$data!="data"] <- "random"
 
-p <- ggplot(plotdata,aes(y=prob,x=data,fill=data))+geom_boxplot()+ 
+p <- ggplot(plotdata,aes(y=prob,x=data,fill=data))+geom_boxplot()+geom_quasirandom()+ 
   scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=20)+ylim(0,1)+
   theme(legend.position = "none")+xlab("")+ylab("probability")
 p
@@ -189,7 +189,7 @@ plotdata$data <- factor(x = plotdata$data,levels=c("data","gt1","gt2","gt3","ran
 plotdata$data[plotdata$data!="data"] <- "random"
 
 
-p <- ggplot(plotdata,aes(y=prob,x=data,fill=data))+geom_boxplot()+ 
+p <- ggplot(plotdata,aes(y=prob,x=data,fill=data))+geom_boxplot()+geom_quasirandom()+ 
   scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=20)+ theme(legend.position = "none")+ylim(0,1)+xlab("")+ylab("probability")
 p
 ggsave(p,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/in_out_probability_slow.pdf",width = 10,height = 10,units = "cm")
@@ -229,7 +229,7 @@ plotdata <- rbind(real,gt1,gt2,gt3)
 plotdata$data <- factor(x = plotdata$data,levels=c("data","gt1","gt2","gt3","random"))
 plotdata$data[plotdata$data!="data"] <- "random"
 
-p <- ggplot(plotdata,aes(y=prob,x=data,fill=data))+geom_boxplot()+ 
+p <- ggplot(plotdata,aes(y=prob,x=data,fill=data))+geom_boxplot()+geom_quasirandom()+ 
   scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=20)+ theme(legend.position = "none")+xlab("")+ylab("probability")+ylim(0,1)
 p
 ggsave(p,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/in_out_probability_fast.pdf",width = 10,height = 10,units = "cm")

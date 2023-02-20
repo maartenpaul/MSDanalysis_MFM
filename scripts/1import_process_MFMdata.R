@@ -182,27 +182,6 @@ stopCluster(cl)
 proc.time() - ptm
 
 save(segments_all,file=file.path(directory,"segments_all_angles.Rdata"))
-# 
-# numPmsd <- 4
-# numPmss <- 4
-# minLen <- 10
-# 
-# p <- seq(from=0.5,to=6,length.out=12)
-# 
-# for (j in 1:length(segments_all)){
-#   
-#   segments_all[[j]] <- ddply(segments_all[[j]],.variables = c("cellID"),.parallel = T,function(x){
-#     ddply(x,.variables = c("track"), .parallel = F, function(x){
-#       if(nrow(x)>minLen){
-#         getMSDandMSS(x$X,x$Y,numPmsd,numPmss,p)
-#         
-#       }
-#       
-#       
-#       return(x)
-#       
-#     })})
-# }
 
 ####split tracks in inside outside column
 for (j in 1:length(segments_all)){
@@ -328,7 +307,14 @@ segs_nest <- segs_nest %>%
   group_modify(~MSD_MSS(.x),.keep=T) %>%
   inner_join(y=segs_nest,by=c("condition","cellID","tracklet")) 
 
+segs_nest$condition <- droplevels(segs_nest$condition)
+
 save(segs_nest,file=file.path(directory,"segs_nest.Rdata"))
+segs_nest %>%
+  nest(-.id) %>%
+  pwalk(~write_delim(x = .y, file = file.path(directory,paste0(.x, ".txt") )) )
+  
+write_delim(segs_nest,file = file.path(directory,"segs_nest.txt"))
 load(file=file.path(directory,"segs_nest.Rdata"))
 
 
