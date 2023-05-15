@@ -24,9 +24,9 @@ msd_analyze_data_mosaic_mask_parallel_intensity <- function(directory,condition_
     output <-alply(filelist,.margins = 1,.parallel = TRUE,.paropts = list(.export=c("filelist","dirs","groundtruth","n","framerate","offst","pixelsize","dimensions","fitMSD","fitzero"),.packages=c("MSDtracking","readr","stats")),function(j){
       Sys.sleep(0.1)
       tracks_simple <- read_csv(j)
-      names(tracks_simple) <- c("track","X","Y","Z","time","frame","step_x","step_y","step_z","inMask","rawInt","meanInt","sdInt","maxInt","minInt","distMask")
+      names(tracks_simple) <- c("track","X","Y","Z","time","frame","step_x","step_y","step_z","inMask","rawInt","meanInt","normInt", "sdInt","maxInt","minInt","distMask","invDistMask", "label", "center_x", "center_y", "center_z", "distanceCentroid3D", "distanceCentroid2D", "distanceToNearest3D", "distanceToNearest2D")
       
-      tracks_simple <- tracks_simple[,c(6,2,3,1,4,5,7,8,9,10,11,12,13,14,15,16)]
+      tracks_simple <- tracks_simple[,c(6,2,3,1,4,5,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26)]
       tracks_simple$frame <- tracks_simple$frame
       segments <- data.frame(SEGMENT_STAT(tracks_simple),"cellID"=basename(j))
       segments <- ddply(segments,.variables = "track",function(x){
@@ -44,7 +44,7 @@ msd_analyze_data_mosaic_mask_parallel_intensity <- function(directory,condition_
         #cat(paste0("number groundtruths found:", k))
         for(k in 1:length(filelist_gt)){
           tracks_simple_gt <- read_csv(filelist_gt[k])
-          names(tracks_simple_gt) <- c("track","X","Y","Z","time","frame","step_x","step_y","step_z","inMask","rawInt","meanInt","sdInt","maxInt","minInt","distMask")
+          names(tracks_simple) <- c("track","X","Y","Z","time","frame","step_x","step_y","step_z","inMask","rawInt","meanInt","normInt", "sdInt","maxInt","minInt","distMask","invDistMask", "label", "center_x", "center_y", "center_z", "distanceCentroid3D", "distanceCentroid2D", "distanceToNearest3D", "distanceToNearest2D")
           segments[[paste0("inMask_gt",k)]] <- tracks_simple_gt$inMask
           segments[[paste0("rawInt_gt",k)]] <- tracks_simple_gt$rawInt
           segments[[paste0("meanInt_gt",k)]] <- tracks_simple_gt$meanInt
@@ -52,6 +52,11 @@ msd_analyze_data_mosaic_mask_parallel_intensity <- function(directory,condition_
           segments[[paste0("maxInt_gt",k)]] <- tracks_simple_gt$maxInt
           segments[[paste0("minInt_gt",k)]] <- tracks_simple_gt$minInt
           segments[[paste0("distMask_gt",k)]] <- tracks_simple_gt$distMask
+          segments[[paste0("invDistMask_gt",k)]] <- tracks_simple_gt$invDistMask
+          segments[[paste0("distanceCentroid3D_gt",k)]] <- tracks_simple_gt$distanceCentroid3D
+          segments[[paste0("distanceCentroid2D_gt",k)]] <- tracks_simple_gt$distanceCentroid2D
+          segments[[paste0("distanceToNearest3D_gt",k)]] <- tracks_simple_gt$distanceToNearest3D
+          segments[[paste0("distanceToNearest2D_gt",k)]] <- tracks_simple_gt$distanceToNearest2D
           segments <- ddply(segments,.variables = "track",function(x){
             if(any(x[[paste0("inMask_gt",k)]]==TRUE)){
               x[[paste0("trackInMask_gt",k)]] <-TRUE

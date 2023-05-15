@@ -10,6 +10,7 @@ library(ggplot2)#required packages
 library(ggpol)
 library(doParallel)
 library(reticulate)
+library(ggbeeswarm)
 source('R/MSD.R')
 source('R/MSD_fit.R')
 source('R/analysis functions.R')
@@ -186,7 +187,8 @@ msd <- segs_nest %>%
   dplyr::distinct(condition,cellID,tracklet,.keep_all=T)%>%
   dplyr::mutate(state_str=as.character(state))%>%
   ggplot(aes(x=D_ML*100,y=(..count..)/tapply(..count..,..PANEL..,sum)[..PANEL..],fill=state_str))+geom_histogram(position="identity",alpha=0.5)+scale_x_log10(limits=c(0.0001,10))+
-  scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=12)+ theme(legend.position = "none")+ylab("relative frequency")+ xlab(expression(D[app]~mu~m^{2}/s))
+  scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=12)+ theme(legend.position = "none")+ylab("relative frequency")+ xlab(expression(D[app]~mu~m^{2}/s))+  scale_y_continuous(expand=c(0,0))
+
 msd
 ggsave(msd,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/msd_plot_outside.pdf",width = 10,height = 5,units = "cm")
 
@@ -196,7 +198,8 @@ msd <- segs_nest %>%
   dplyr::distinct(condition,cellID,tracklet,.keep_all=T)%>%
   dplyr::mutate(state_str=as.character(state))%>%
   ggplot(aes(x=D_ML*100,y=(..count..)/tapply(..count..,..PANEL..,sum)[..PANEL..],fill=state_str))+geom_histogram(position="identity",alpha=0.5)+scale_x_log10(limits=c(0.0001,10))+
-  scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=12)+ theme(legend.position = "none")+ylab("relative frequency")+ xlab(expression(D[app]~mu~m^{2}/s))
+  scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=12)+ theme(legend.position = "none")+ylab("relative frequency")+ xlab(expression(D[app]~mu~m^{2}/s))+  scale_y_continuous(expand=c(0,0))
+
 msd
 ggsave(msd,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/msd_plot_random.pdf",width = 10,height = 5,units = "cm")
 
@@ -292,7 +295,7 @@ p <- rbind(data %>%
   scale_y_continuous(expand=c(0,0))
 
   p
-  
+
   ggsave(p,filename = file.path("/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/","WT_MMC_mean_fraction_tracklets_beeswarm.pdf"))
   ggsave(p,filename = file.path("/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/","WT_MM_mean_fraction_tracklets_beeswarm.png"))
 # plot fraction of localizations in the mask ------------------------------
@@ -323,6 +326,17 @@ stats <- segs_nest %>%
 
 # angle plots -------------------------------------------------------------
 #angle histogram in out
+
+scale_fill_Publication <- function(...){
+  library(scales)
+  discrete_scale("fill","Publication",manual_pal(values = c("#1F497D","#c00000","#542788","#217D68","#386cb0","#fdb462","#386cb0","#fdb462","#386cb0","#fdb462","#386cb0","#fdb462")), ...)
+  
+}
+scale_colour_Publication <- function(...){
+  library(scales)
+  discrete_scale("colour","Publication",manual_pal(values = c("#c00000","#6599D9","#542788","#217D68","#386cb0","#fdb462","#386cb0","#fdb462","#386cb0","#fdb462","#386cb0","#fdb462")), ...)
+  
+}
 inputdata <- segs_nest %>%
   dplyr::filter(displacement1>0.1,angle>0,state<2,condition=="WT MMC")
 p <-inputdata %>%
@@ -369,6 +383,17 @@ p <- inputdata %>%
   scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=8)
 p
 ggsave(p,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/angle_histogram_in_out_state0_fast.pdf",width = 10,height = 10,units = "cm")
+
+inputdata <- segs_nest %>%
+  filter(displacement1>0.1,angle>0,inMask==T,state<2,condition=="WT MMC")
+p <- inputdata %>%
+  dplyr::mutate(angle=360-angle)%>%
+  rbind(inputdata)%>%
+  ggplot(aes(x=angle,fill=as.character(state)))+geom_histogram(breaks=seq(0, 350, 10),aes(y=..density..),
+                                                                alpha=0.5,position='identity')+ylim(0,0.008)+
+  scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=8)
+
+p
 
 #making linear line plot of fold anisotropy vs mean displacement
 
@@ -448,6 +473,8 @@ results_gt3 <- ddply(results_outside,.variables = c("mean_disp"),function(x){
 results_gt1$fold <- (results_gt1$fold+results_gt2$fold+results_gt3$fold)/3
 results_gt1$location <- "mean_gt"
 results <- rbind(results_inside,results_outside,results_gt1)
-ggplot(results,aes(x=mean_disp,y=fold,color=location))+geom_line()+geom_point()+xlab("Mean displacement (um)")+ylab("Fold anisotropy")+ylim(0,7)+xlim(0,0.5)+scale_colour_Publication()+theme_Publication(base_size=12)
+p <- ggplot(results,aes(x=mean_disp,y=fold,color=location))+geom_line()+geom_point()+xlab("Mean displacement (um)")+ylab("Fold anisotropy")+ylim(0,7)+xlim(0,0.5)+scale_colour_Publication()+theme_Publication(base_size=12)+
+  scale_y_continuous(expand=c(0,0))
+p
 
-
+ggsave(p,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/angle_lineplot.pdf",width = 10,height = 7,units = "cm")

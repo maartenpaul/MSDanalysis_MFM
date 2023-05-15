@@ -26,6 +26,7 @@ max_tracks <- 500 #maximum number of tracks per frame else exclude tracks from d
 dim <- 2 #number of dimensions of tracking
 
 directory <- "/media/DATA/Maarten/MFM/data_gtv2/"
+directory <- "/media/DATA/Maarten/MFM/data_2023/"
 condition_list <- list.dirs(directory,full.names = F,recursive = F)
 
 #import data organize in lists of the different data sets
