@@ -1,8 +1,8 @@
 #this script skips the import of data and can be used for subsequent steps of analysis
 
 #required packages
-library(tidyverse)
 library(plyr)
+library(tidyverse)
 library(lattice)
 library(stats)
 library(MSDtracking)
@@ -14,7 +14,6 @@ library(ggbeeswarm)
 source('R/MSD.R')
 source('R/MSD_fit.R')
 source('R/analysis functions.R')
-source('python/ML_py.R')
 
 theme_Publication <- function(base_size=14, base_family="sans") {
   library(grid)
@@ -61,23 +60,14 @@ scale_colour_Publication <- function(...){
 }
 
 #input variables
-directory <- "/media/DATA/Maarten/MFM/data_gtv2/"
+directory <- "/media/OIC-station2/MFM/TM/"
 
-condition_list <- list.dirs(directory,full.names = F,recursive = F)
+#condition_list <- list.dirs(directory,full.names = F,recursive = F)
 #condition_list <- condition_list[c(2,3,5)]
 
 load(file=file.path(directory,"segs_nest.Rdata"))
 
-segs_nest <- dplyr::filter(segs_nest,condition=="WT MMC")
-segs_nest <- segs_nest %>%
-  group_by(.id,tracklet,condition)%>%
-  dplyr::mutate(trackletInMask=any(inMask==T))
-
-segs_nest <- segs_nest %>%
-  group_by(.id,tracklet,condition)%>%
-  dplyr::mutate(trackletInMask_gt1=any(inMask_gt1==T))
-
-
+#segs_nest <- dplyr::filter(segs_nest,condition=="WT MMC")
 # Diffusion histograms in-out mask ----------------------------------------
 # k <- segs_nest %>%
 #   filter(D_ML_focus>0)%>%
@@ -98,9 +88,11 @@ segs_nest <- segs_nest %>%
 #   group_by(condition,inMask) %>%
 #   dplyr::summarise(mean_fraction=round(mean(fraction),digits = 2),sd_fraction=round(sd(fraction),digits = 2))
 
+condition <- "WT MMC"
+
 #histogram in-out foci
 p <- segs_nest %>%
-  filter(D_ML_focus>0,condition=="WT MMC")%>%
+  filter(D_ML_focus>0,condition==condition)%>%
   dplyr::distinct(condition,cellID,focus_tracklet,.keep_all=T)%>%
   mutate(state_str=as.character(inMask))%>%
   ggplot(aes(x=D_ML_focus*100,fill=state_str,y=(..count..)/tapply(..count..,..PANEL..,sum)[..PANEL..]))+geom_histogram(position="identity",alpha=0.5)+scale_x_log10(limits=c(0.0001,10))+facet_wrap(.~state_str,ncol=2)+
@@ -109,7 +101,7 @@ p
 ggsave(p,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/msd_histogram_inout_mask.pdf",width = 10,height = 5,units = "cm")
 #histogram in-out foci gt1
 p <- segs_nest %>%
-  filter(D_ML_focus_gt1>0,condition=="WT MMC")%>%
+  filter(D_ML_focus_gt1>0&condition=="WT MMC")%>%
   dplyr::distinct(condition,cellID,focus_tracklet_gt1,.keep_all=T)%>%
   mutate(state_str=as.character(inMask_gt1))%>%
   ggplot(aes(x=D_ML_focus_gt1*100,fill=state_str,y=(..count..)/tapply(..count..,..PANEL..,sum)[..PANEL..]))+geom_histogram(position="identity",alpha=0.5)+scale_x_log10(limits=c(0.0001,10))+facet_wrap(.~state_str,ncol=2)+
@@ -117,28 +109,30 @@ p <- segs_nest %>%
 p
 ggsave(p,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/msd_histogram_inout_mask_gt1.pdf",width = 10,height = 5,units = "cm")
 
+
 #plotting of displacements in out
 p <- segs_nest %>%
   filter(displacement1>0)%>%
-  ggplot(aes(x=displacement1*1000,fill=as.character(inMask)))+geom_histogram(bins = 60,aes(y=..density..),alpha=0.5,position='identity')+
+  ggplot(aes(x=displacement1*1000,fill=as.character(inMask)))+geom_histogram(bins = 60,aes(y=..density..),alpha=0.5,position='identity')+xlim(0,500)+
   geom_density(alpha=0.5,aes(color=as.character(inMask),fill=NULL))+scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=12)+ xlab("x-y displacement (nm)")+ theme(legend.position = "none")
 p
 ggsave(p,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/displacements_inout_mask.pdf",width = 10,height = 5,units = "cm")
 
 #plotting of displacements in out gt1
-
 p <- segs_nest %>%
   filter(displacement1>0)%>%
-  ggplot(aes(x=displacement1*1000,fill=as.character(inMask_gt1)))+geom_histogram(bins = 60,aes(y=..density..),alpha=0.5,position='identity')+
+  ggplot(aes(x=displacement1*1000,fill=as.character(inMask_gt1)))+geom_histogram(bins = 60,aes(y=..density..),alpha=0.5,position='identity')+xlim(0,500)+
   geom_density(aes(alpha=0.5,color=as.character(inMask_gt1),fill=NULL))+scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=12)+ xlab("x-y displacement (nm)")+ theme(legend.position = "none")
 p
 ggsave(p,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/displacements_inout_mask_gt1.pdf",width = 10,height = 5,units = "cm")
 
 
+
+
 ###make D histograms fractions
 #MSD
 msd <- segs_nest %>%
-  dplyr::filter(D_ML>0,condition=="WT MMC")%>%
+  dplyr::filter(D_ML>0,condition=="WT HU")%>%
   dplyr::distinct(condition,cellID,tracklet,.keep_all=T)%>%
   dplyr::mutate(state_str=as.character(state))%>%
   ggplot(aes(x=D_ML*100,y=(..count..)/tapply(..count..,..PANEL..,sum)[..PANEL..],fill=state_str))+geom_histogram(position="identity",alpha=0.5)+scale_x_log10(limits=c(0.0001,10))+
@@ -148,13 +142,23 @@ ggsave(msd,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in pre
 
 #MSS
 mss <- segs_nest %>%
+  dplyr::filter(D_ML>0,condition=="WT MMC",inMask==T)%>%
+  dplyr::distinct(condition,cellID,tracklet,.keep_all=T)%>%
+  dplyr::mutate(state_str=as.character(state))%>%
+  ggplot(aes(x=D_Smmss,y=(..count..)/tapply(..count..,..PANEL..,sum)[..PANEL..],fill=state_str))+geom_histogram(position="identity",alpha=0.5)+xlim(-0.5,1)+
+  scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=12)+ theme(legend.position = "none")+ylab("relative frequency")+ xlab(expression(S[MSS]))
+mss
+ggsave(mss,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/mss_plot_in_mask.pdf",width = 10,height = 5,units = "cm")
+
+
+mss <- segs_nest %>%
   dplyr::filter(D_ML>0,condition=="WT MMC")%>%
   dplyr::distinct(condition,cellID,tracklet,.keep_all=T)%>%
   dplyr::mutate(state_str=as.character(state))%>%
   ggplot(aes(x=D_Smmss,y=(..count..)/tapply(..count..,..PANEL..,sum)[..PANEL..],fill=state_str))+geom_histogram(position="identity",alpha=0.5)+xlim(-0.5,1)+
   scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=12)+ theme(legend.position = "none")+ylab("relative frequency")+ xlab(expression(S[MSS]))
 mss
-ggsave(mss,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/mss_plot.pdf",width = 10,height = 5,units = "cm")
+ggsave(mss,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/mss_plot_inside.pdf",width = 10,height = 5,units = "cm")
 
 
 #scatter plot
@@ -206,7 +210,7 @@ ggsave(msd,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in pre
 
 # plot fraction of segments per cell --------------------------------------
 segments <- segs_nest %>%
-  filter(condition=="WT MMC"&D_ML>0)
+  filter(condition=="dCTD HU"&D_ML>0)
 p <- rbind(segments %>%
              group_by(.id,inMask,state)%>%
              dplyr::summarise(n=n()) %>%
@@ -238,11 +242,11 @@ ggsave(p,filename = file.path("/media/DATA/Maarten/OneDrive/Documents/Manuscript
 ggsave(p,filename = file.path("/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/","WT_MM_mean_fraction_segments.png"))
 
 
+#plot fraction of tracklets
+plot_data <- segs_nest %>%
+  dplyr::filter(condition=="WT MMC"&D_ML>0) 
 
-data <- segs_nest %>%
-  filter(condition=="WT MMC"&D_ML>0) 
-
-p <- rbind(data %>%
+p <- rbind(plot_data %>%
         group_by(.id,trackletInMask,state)%>%
         dplyr::summarise(n=n_distinct(tracklet)) %>%
         group_by(.id,trackletInMask) %>%
@@ -251,7 +255,7 @@ p <- rbind(data %>%
         dplyr::mutate(labels=factor(labels,levels=c("outside_immobile","outside_slow","outside_fast","inside_immobile","inside_slow","inside_fast")))%>%
         group_by(labels)%>%
         dplyr::summarise(var=sd(fraction,na.rm = T)/sqrt(n()),fraction=mean(fraction),state=state[1],trackInMask=trackletInMask[1]),
-      (data%>%
+      (plot_data%>%
          group_by(.id,trackletInMask_gt1,state)%>%
          dplyr::summarise(n=n_distinct(tracklet)) %>%
          group_by(.id,trackletInMask_gt1) %>%
@@ -267,50 +271,59 @@ p <- rbind(data %>%
 
 p
 
-trackletInMask
 
 ggsave(p,filename = file.path("/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/","WT_MMC_mean_fraction_tracklets.pdf"))
 ggsave(p,filename = file.path("/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/","WT_MM_mean_fraction_tracklets.png"))
 
-p <- rbind(data %>%
-        group_by(.id,trackInMask,state)%>%
+
+p <- rbind(plot_data %>%
+        group_by(.id,trackletInMask,state)%>%
         dplyr::summarise(n=n_distinct(tracklet)) %>%
-        group_by(.id,trackInMask) %>%
+        group_by(.id,trackletInMask) %>%
         dplyr:: mutate(fraction=n/sum(n))%>%
-        dplyr::mutate(labels=paste0(c("outside","inside")[trackInMask+1],"_",c("fast","slow",'immobile')[state+1]))%>%
+        dplyr::mutate(labels=paste0(c("outside","inside")[trackletInMask+1],"_",c("fast","slow",'immobile')[state+1]))%>%
         dplyr::mutate(labels=factor(labels,levels=c("outside_immobile","outside_slow","outside_fast","inside_immobile","inside_slow","inside_fast")))%>%
         group_by(labels),
-      data%>%
-         group_by(.id,trackInMask_gt1,state)%>%
+      plot_data%>%
+         group_by(.id,trackletInMask_gt1,state)%>%
          dplyr::summarise(n=n_distinct(tracklet)) %>%
-         group_by(.id,trackInMask_gt1) %>%
+         group_by(.id,trackletInMask_gt1) %>%
          dplyr::mutate(fraction=n/sum(n))%>%
-         dplyr::mutate(labels=paste0(c("outside_GT","inside_GT")[trackInMask_gt1+1],"_",c("fast","slow",'immobile')[state+1]))%>%
+         dplyr::mutate(labels=paste0(c("outside_GT","inside_GT")[trackletInMask_gt1+1],"_",c("fast","slow",'immobile')[state+1]))%>%
          dplyr::mutate(labels=factor(labels,levels=c("outside_GT_immobile","outside_GT_slow","outside_GT_fast","inside_GT_immobile","inside_GT_slow","inside_GT_fast")))%>%
          group_by(labels)) %>%
         dplyr::filter(labels!="outside_GT_immobile"&labels!="outside_GT_slow"&labels!="outside_GT_fast")%>%
   ggplot(aes(x=labels,y=fraction, fill=labels))+geom_boxplot()+geom_quasirandom(size=0.1)+xlab("")+
-  ylim(0,1) +theme_Publication(base_size=25)+scale_colour_Publication()+scale_fill_Publication()+
+  ylim(0,1.2) +theme_Publication(base_size=25)+scale_colour_Publication()+scale_fill_Publication()+
   theme(legend.position = "none",text = element_text(size=15),axis.text.x = element_text(angle = 90))+
   scale_y_continuous(expand=c(0,0))
+p
+add_pval(p, pairs = list(c(1, 4),c(4,7)), test='wilcox.test')
 
-  p
 
   ggsave(p,filename = file.path("/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/","WT_MMC_mean_fraction_tracklets_beeswarm.pdf"))
   ggsave(p,filename = file.path("/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/","WT_MM_mean_fraction_tracklets_beeswarm.png"))
 # plot fraction of localizations in the mask ------------------------------
 
 library(ggbeeswarm)
-
+  library(ggpval)
+  library(ggsignif)
+  
 p <- segs_nest %>%
   filter(condition=="WT MMC")%>%
   group_by(cellID)%>%
   dplyr::summarise(n=n(),data=sum(inMask)/n(),random=sum(inMask_gt1)/n())%>%
   melt(id.vars="cellID",measure.vars=c("data","random"))%>%
-  ggplot(aes(y=value,x=variable,fill=variable))+ geom_boxplot(outlier.shape = NA,notch = T)+geom_quasirandom()+ylim(0,0.5)+
+  ggplot(aes(y=value,x=variable,fill=variable))+ geom_boxplot(outlier.shape = NA,notch = T)+geom_quasirandom()+ylim(0,0.3)+
   scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=8)+ theme(legend.position = "none")+
-  xlab("")+ylab("fraction localizations inside mask")
+  xlab("")+ylab("fraction localizations inside mask")+ 
+geom_signif(comparisons = list(c("data", "random")), 
+            map_signif_level=F,     y_position = c(0.25))
 p
+
+
+p %>% group_by(variable) %>% dplyr::summarize(mean(value))
+
 ggsave(p,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/fraction_localizations_inside.pdf",width = 10,height = 10,units = "cm")
 
 stats <- segs_nest %>%
@@ -322,6 +335,10 @@ stats <- segs_nest %>%
   dplyr::summarize(x=mean(value)) %>%
   group_by(variable)%>%
   dplyr::summarize(out=mean(x))
+
+stats$out[1]/stats$out[2]
+
+
 
 
 # angle plots -------------------------------------------------------------
@@ -338,22 +355,22 @@ scale_colour_Publication <- function(...){
   
 }
 inputdata <- segs_nest %>%
-  dplyr::filter(displacement1>0.1,angle>0,state<2,condition=="WT MMC")
+  dplyr::filter(displacement1>0.1,angle1>0,state!=2,condition=="WT untreated")
 p <-inputdata %>%
-  dplyr::mutate(angle=360-angle)%>%
+  dplyr::mutate(angle1=360-angle1)%>%
   rbind(inputdata)%>%
- ggplot(aes(x=angle,fill=as.character(inMask)))+geom_histogram(breaks=seq(0, 350, 10),aes(y=..density..),alpha=0.5,position='identity')+
-  ylim(0,0.007)+scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=8)
+ ggplot(aes(x=angle1,fill=as.character(inMask)))+geom_histogram(breaks=seq(0, 350, 10),aes(y=..density..),alpha=0.5,position='identity')+
+  ylim(0,0.012)+scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=8)
 p 
 ggsave(p,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/angle_histogram_in_out.pdf",width = 10,height = 10,units = "cm")
 
 #angle histogram gt_1
 inputdata <- segs_nest %>%
-  filter(displacement1>0.1,angle>0,state<2,condition=="WT MMC")
+  filter(displacement1>0.1,angle1>0,state<2,condition=="WT MMC")
 p <- inputdata %>%
-  dplyr::mutate(angle=360-angle)%>%
+  dplyr::mutate(angle1=360-angle1)%>%
   rbind(inputdata)%>%
-  ggplot(aes(x=angle,fill=as.character(inMask_gt1)))+geom_histogram(breaks=seq(0, 350, 10),aes(y=..density..),
+  ggplot(aes(x=angle1,fill=as.character(inMask_gt1)))+geom_histogram(breaks=seq(0, 350, 10),aes(y=..density..),
                                                                 alpha=0.5,position='identity')+ylim(0,0.007)+scale_colour_Publication()+scale_fill_Publication()+
   theme_Publication(base_size=8)
 p
@@ -361,12 +378,12 @@ ggsave(p,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in prepa
 
 #angle histogram stat1 slow
 inputdata <- segs_nest %>%
-  filter(displacement1>0.1,angle>0,state==1,condition=="WT MMC")
+  filter(displacement1>0.1,angle1>0,state==1,condition=="WT untreated")
 p <- inputdata %>%
-  dplyr::mutate(angle=360-angle)%>%
+  dplyr::mutate(angle1=360-angle1)%>%
   rbind(inputdata)%>%
-  ggplot(aes(x=angle,fill=as.character(inMask)))+geom_histogram(breaks=seq(0, 350, 10),aes(y=..density..),
-                                                                alpha=0.5,position='identity')+ylim(0,0.008)+scale_colour_Publication()+
+  ggplot(aes(x=angle1,fill=as.character(inMask)))+geom_histogram(breaks=seq(0, 350, 10),aes(y=..density..),
+                                                                alpha=0.5,position='identity')+ylim(0,0.012)+scale_colour_Publication()+
   scale_fill_Publication()+theme_Publication(base_size=8)
 p
 ggsave(p,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/angle_histogram_in_out_state1.pdf",width = 10,height = 10,units = "cm")
@@ -374,32 +391,32 @@ ggsave(p,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in prepa
 #angle histogram stat0 fast
 
 inputdata <- segs_nest %>%
-  filter(displacement1>0.1,angle>0,state==0,condition=="WT MMC")
+  filter(displacement1>0.1,angle1>0,state==0,condition=="WT MMC")
 p <- inputdata %>%
-  dplyr::mutate(angle=360-angle)%>%
+  dplyr::mutate(angle1=360-angle1)%>%
   rbind(inputdata)%>%
-  ggplot(aes(x=angle,fill=as.character(inMask)))+geom_histogram(breaks=seq(0, 350, 10),aes(y=..density..),
-                                                                alpha=0.5,position='identity')+ylim(0,0.008)+
+  ggplot(aes(x=angle1,fill=as.character(inMask)))+geom_histogram(breaks=seq(0, 350, 10),aes(y=..density..),
+                                                                alpha=0.5,position='identity')+ylim(0,0.012)+
   scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=8)
 p
 ggsave(p,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/angle_histogram_in_out_state0_fast.pdf",width = 10,height = 10,units = "cm")
 
 inputdata <- segs_nest %>%
-  filter(displacement1>0.1,angle>0,inMask==T,state<2,condition=="WT MMC")
+  filter(displacement1>0.1,angle1>0,inMask==T,state<2,condition=="WT MMC")
 p <- inputdata %>%
-  dplyr::mutate(angle=360-angle)%>%
+  dplyr::mutate(angle1=360-angle1)%>%
   rbind(inputdata)%>%
-  ggplot(aes(x=angle,fill=as.character(state)))+geom_histogram(breaks=seq(0, 350, 10),aes(y=..density..),
-                                                                alpha=0.5,position='identity')+ylim(0,0.008)+
+  ggplot(aes(x=angle1,fill=as.character(state)))+geom_histogram(breaks=seq(0, 350, 10),aes(y=..density..),
+                                                                alpha=0.5,position='identity')+ylim(0,0.020)+
   scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=8)
 
 p
 
 #making linear line plot of fold anisotropy vs mean displacement
 
-break_size <-0.015
+break_size <-0.03
 data <- segs_nest %>%
-  filter(angle>0,state<2,condition=="WT MMC",inMask==T)
+  filter(angle1>0,state<2,condition=="WT MMC",inMask==T)
 data$mean_disp <- (data$displacement1+data$displacement2)/2
 bins <- seq(0,0.5,break_size)
 
@@ -414,7 +431,7 @@ results_inside$location <- "inside"
 
 #outside
 data <- segs_nest %>%
-  filter(angle>0,state<2,condition=="WT MMC",inMask==F)
+  filter(angle1>0,state<2,condition=="WT MMC",inMask==F)
 data$mean_disp <- (data$displacement1+data$displacement2)/2
 bins <- seq(0,0.5,break_size)
 
@@ -429,7 +446,7 @@ results_outside <- ddply(results_outside,.variables = c("mean_disp"),function(x)
 results_outside$location <- "outside"
 #gt1
 data <- segs_nest %>%
-  filter(angle>0,state<2,condition=="WT MMC",inMask_gt1==T)
+  filter(angle>0,state<2,condition=="WT untreated",inMask_gt1==T)
 data$mean_disp <- (data$displacement1+data$displacement2)/2
 bins <- seq(0,0.5,break_size)
 
@@ -443,7 +460,7 @@ results_gt1 <- ddply(results_outside,.variables = c("mean_disp"),function(x){
 
 #gt2
 data <- segs_nest %>%
-  filter(angle>0,state<2,condition=="WT MMC",inMask_gt2==T)
+  filter(angle>0,state<2,condition=="WT untreated",inMask_gt2==T)
 data$mean_disp <- (data$displacement1+data$displacement2)/2
 bins <- seq(0,0.5,break_size)
 
@@ -457,7 +474,7 @@ results_gt2 <- ddply(results_outside,.variables = c("mean_disp"),function(x){
 
 #gt3
 data <- segs_nest %>%
-  filter(angle>0,state<2,condition=="WT MMC",inMask_gt3==T)
+  filter(angle1>0,state<2,condition=="WT untreated",inMask_gt3==T)
 data$mean_disp <- (data$displacement1+data$displacement2)/2
 bins <- seq(0,0.5,break_size)
 
@@ -473,8 +490,9 @@ results_gt3 <- ddply(results_outside,.variables = c("mean_disp"),function(x){
 results_gt1$fold <- (results_gt1$fold+results_gt2$fold+results_gt3$fold)/3
 results_gt1$location <- "mean_gt"
 results <- rbind(results_inside,results_outside,results_gt1)
-p <- ggplot(results,aes(x=mean_disp,y=fold,color=location))+geom_line()+geom_point()+xlab("Mean displacement (um)")+ylab("Fold anisotropy")+ylim(0,7)+xlim(0,0.5)+scale_colour_Publication()+theme_Publication(base_size=12)+
-  scale_y_continuous(expand=c(0,0))
+p <- ggplot(results,aes(x=mean_disp,y=fold,color=location))+geom_line()+geom_point()+xlab("Mean displacement (um)")+ylab("Fold anisotropy")+
+  ylim(0,8)+xlim(0,0.5)+scale_colour_Publication()+theme_Publication(base_size=12)
+#  scale_y_continuous(expand=c(0,0))
 p
 
 ggsave(p,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/angle_lineplot.pdf",width = 10,height = 7,units = "cm")

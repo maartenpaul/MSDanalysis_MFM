@@ -22,15 +22,17 @@ fitzero <- TRUE #should fit go through origin (0,0)
 pixelsize = 1000
 fitMSD <- F
 max_tracks <- 500 #maximum number of tracks per frame else exclude tracks from dataset, avoids mislinking of tracks
-dim <- 2 #number of dimensions of tracking
+dim <- 2
+offset <- 0.0
 
-directory <- "/media/DATA/Maarten/MFM/data_2023/"
+directory <- "/media/OIC-station2/MFM/TM/"
 condition_list <- list.dirs(directory,full.names = F,recursive = F)
 
 #import data organize in list of the different data sets
-msd_analyze_data_mosaic_mask_parallel_intensity(directory,condition_list[5],framerate,n,fitzero,min_length,pixelsize,fitMSD,offset,max_tracks,dim=dim,groundtruth=TRUE)
+msd_analyze_data_mosaic_mask_parallel_intensityTM(directory=directory,condition_list=condition_list[c(1,2,4,5,6,7)],
+                                                  framerate=framerate,n=n,fitzero=fitzero,pixelsize=pixelsize,fitMSD=fitMSD,offset=offset,groundtruth=TRUE)
 
-load(file.path(directory,"msd_fit_all.Rdata"))
+#load(file.path(directory,"msd_fit_all.Rdata"))
 load(file.path(directory,"segments_all.Rdata"))
 
 #estimate states using MLMSS
@@ -134,6 +136,26 @@ for (j in 1:length(segments_all)){
       }
       return(displ)
     }
+    get_displacements_3d <- function(x,n){
+      x$frame  <- x$frame-x$frame[1]+1
+      displ <- cbind(rep(x=-1,nrow(x)),rep(x=-1,nrow(x)))
+      if(nrow(x)>=(3*n+n-1)){
+        #loop over all steps of tracks
+        for (k in 1:(nrow(x)-2*n)){
+          
+          if (is.element(x[k,2]+n,x$frame)&&is.element(x[k,2]+2*n,x$frame)){ #check if point is present in track, this deals with gaps
+            x1 <- as.numeric(x[k,c(3,4,6)])
+            which_point1 <- which(x[,2]==x[k,2]+n)
+            x2 <- as.numeric(x[which_point1,c(3,4,6)])
+            which_point2 <- which(x[,2]==x[k,2]+2*n)
+            x3 <- as.numeric(x[which_point2,c(3,4,6)])
+            displ[which_point1,] <- c( sqrt((x1[1]-x2[1])^2+(x1[2]-x2[2])^2+(x1[3]-x2[3])^2) ,sqrt((x2[1]-x3[1])^2+(x2[2]-x3[2])^2)+(x2[3]-x3[3])^2) )
+            
+          }}
+      }
+      return(displ)
+    }
+    
     get_radial_displacements <- function(x,n,gt=""){
       x$frame  <- x$frame-x$frame[1]+1
       displ <- cbind(rep(x=NA,nrow(x)),rep(x=NA,nrow(x)))
@@ -145,8 +167,8 @@ for (j in 1:length(segments_all)){
             x1 <- as.numeric(x[,paste0("distanceToNearest3D",gt)][k])
             which_point1 <- which(x[,2]==x[k,2]+n)
             x2 <- as.numeric(x[,paste0("distanceToNearest3D",gt)][which_point1])
-            which_point2 <- which(x[,2]==x[k,2]+2*n)
-            x3 <- as.numeric(x[,paste0("distanceToNearest3D",gt)][which_point2])
+           # which_point2 <- which(x[,2]==x[k,2]+2*n)
+          #  x3 <- as.numeric(x[,paste0("distanceToNearest3D",gt)][which_point2])
             displ[k,] <- c((x2[1]-x1[1]))
             
           }}
@@ -161,6 +183,8 @@ for (j in 1:length(segments_all)){
       x$angle1 <- get_angles(x,1)
       x$angle1_3D <- get_angles(x,1,dim=3)
       x[c("displacement1","displacement2")] <- get_displacements(x,1)
+      x[c("displacement_3d1","displacement_3d2")] <- get_displacements_3d(x,1)
+      
       x$radial_displacement1 <- get_radial_displacements(x,1,"")
       x$radial_displacement1_gt1 <- get_radial_displacements(x,1,"_gt1")
       x$focus_angle <- get_focus_angles(x,1,gt="",dim=2)
@@ -329,32 +353,40 @@ MSD_only <- function(x){
 }
 
 segs_nest <- ldply(segments_all)
-segs_nest <-segs_nest%>%
-#  filter(condition=="WT MMC")%>%
-  select(condition,cellID,focus_tracklet,X,Y) %>%
-  group_by(condition,cellID,focus_tracklet) %>%
-  group_modify(~MSD_MSS_focus(.x)) %>%
-  inner_join(y=segs_nest,by=c("condition","cellID","focus_tracklet")) %>%
-  ungroup()
+ 
+ segs_nest <- segs_nest %>%
+   select(condition,cellID,tracklet,X,Y) %>%
+   group_by(condition,cellID,tracklet) %>%
+   group_modify(~MSD_MSS(.x),.keep=T) %>%
+   inner_join(y=segs_nest,by=c("condition","cellID","tracklet")) 
 
-#gt1
-segs_nest <-segs_nest%>%
-  select(condition,cellID,focus_tracklet_gt1,X,Y) %>%
-  group_by(condition,cellID,focus_tracklet_gt1) %>%
-  group_modify(~MSD_MSS_focus_gt1(.x)) %>%
-  inner_join(y=segs_nest,by=c("condition","cellID","focus_tracklet_gt1")) %>%
-  ungroup()
-
-segs_nest <- segs_nest %>%
-  select(condition,cellID,tracklet,X,Y) %>%
-  group_by(condition,cellID,tracklet) %>%
-  group_modify(~MSD_MSS(.x),.keep=T) %>%
-  inner_join(y=segs_nest,by=c("condition","cellID","tracklet")) 
-
+ segs_nest <-segs_nest%>%
+   #  filter(condition=="WT MMC")%>%
+   select(condition,cellID,focus_tracklet,X,Y) %>%
+   group_by(condition,cellID,focus_tracklet) %>%
+   group_modify(~MSD_MSS_focus(.x)) %>%
+   inner_join(y=segs_nest,by=c("condition","cellID","focus_tracklet")) %>%
+   ungroup()
+ 
+ #gt1
+ segs_nest <-segs_nest%>%
+   select(condition,cellID,focus_tracklet_gt1,X,Y) %>%
+   group_by(condition,cellID,focus_tracklet_gt1) %>%
+   group_modify(~MSD_MSS_focus_gt1(.x)) %>%
+   inner_join(y=segs_nest,by=c("condition","cellID","focus_tracklet_gt1")) %>%
+   ungroup()
+ 
 #add tracklet in Mask column
 segs_nest <- segs_nest %>%
   group_by(.id,tracklet,condition)%>%
   dplyr::mutate(trackletInMask=any(inMask==T))
+
+segs_nest <- segs_nest %>%
+  group_by(.id,tracklet,condition)%>%
+  dplyr::mutate(trackletInMask_gt1=any(inMask_gt1==T))
+
+save(segs_nest,file=file.path(directory,"segs_nest.Rdata"))
+
 
 #save csv files
 segs_nest$condition <- droplevels(segs_nest$condition)
