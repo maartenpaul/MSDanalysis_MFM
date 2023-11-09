@@ -4,8 +4,8 @@ library(reshape2)
 
 #use with tensorflow==1.14.0 and keras==2.2.0
 
-py_install(c("statsmodels", "seaborn", "pandas", "matplotlib"))
-py_install("scikit-learn")
+#py_install(c("statsmodels", "seaborn", "pandas", "matplotlib"))
+#py_install("scikit-learn")
 
 path_to_model<-"python/Model_Bidirectional_NoShape_3state_Tr10000"
   rm(py)
