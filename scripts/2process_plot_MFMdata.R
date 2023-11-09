@@ -60,7 +60,11 @@ scale_colour_Publication <- function(...){
 }
 
 #input variables
+<<<<<<< HEAD
 directory <- "/media/DATA/Maarten/MFM/data_2023/"
+=======
+directory <- "/media/OIC-station2/MFM/TM/"
+>>>>>>> d0489fe33dd544f3c894d8d2a7a7b4466d576435
 
 #condition_list <- list.dirs(directory,full.names = F,recursive = F)
 #condition_list <- condition_list[c(2,3,5)]
@@ -68,6 +72,7 @@ directory <- "/media/DATA/Maarten/MFM/data_2023/"
 #load(file=file.path(directory,"segs_nest.Rdata"))
 
 #segs_nest <- dplyr::filter(segs_nest,condition=="WT MMC")
+<<<<<<< HEAD
 segs_nest <- segs_nest %>%
   group_by(.id,tracklet,condition)%>%
   dplyr::mutate(trackletInMask=any(inMask==T))
@@ -77,6 +82,8 @@ segs_nest <- segs_nest %>%
   dplyr::mutate(trackletInMask_gt1=any(inMask_gt1==T))
 
 
+=======
+>>>>>>> d0489fe33dd544f3c894d8d2a7a7b4466d576435
 # Diffusion histograms in-out mask ----------------------------------------
 # k <- segs_nest %>%
 #   filter(D_ML_focus>0)%>%
@@ -97,9 +104,11 @@ segs_nest <- segs_nest %>%
 #   group_by(condition,inMask) %>%
 #   dplyr::summarise(mean_fraction=round(mean(fraction),digits = 2),sd_fraction=round(sd(fraction),digits = 2))
 
+condition <- "WT MMC"
+
 #histogram in-out foci
 p <- segs_nest %>%
-  filter(D_ML_focus>0,condition=="WT MMC")%>%
+  filter(D_ML_focus>0,condition==condition)%>%
   dplyr::distinct(condition,cellID,focus_tracklet,.keep_all=T)%>%
   mutate(state_str=as.character(inMask))%>%
   ggplot(aes(x=D_ML_focus*100,fill=state_str,y=(..count..)/tapply(..count..,..PANEL..,sum)[..PANEL..]))+geom_histogram(position="identity",alpha=0.5)+scale_x_log10(limits=c(0.0001,10))+facet_wrap(.~state_str,ncol=2)+
@@ -139,7 +148,7 @@ ggsave(p,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in prepa
 ###make D histograms fractions
 #MSD
 msd <- segs_nest %>%
-  dplyr::filter(D_ML>0,condition=="WT MMC")%>%
+  dplyr::filter(D_ML>0,condition=="WT HU")%>%
   dplyr::distinct(condition,cellID,tracklet,.keep_all=T)%>%
   dplyr::mutate(state_str=as.character(state))%>%
   ggplot(aes(x=D_ML*100,y=(..count..)/tapply(..count..,..PANEL..,sum)[..PANEL..],fill=state_str))+geom_histogram(position="identity",alpha=0.5)+scale_x_log10(limits=c(0.0001,10))+
@@ -217,7 +226,11 @@ ggsave(msd,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in pre
 
 # plot fraction of segments per cell --------------------------------------
 segments <- segs_nest %>%
+<<<<<<< HEAD
   filter(condition=="dDBD MMC"&D_ML>0)
+=======
+  filter(condition=="dCTD HU"&D_ML>0)
+>>>>>>> d0489fe33dd544f3c894d8d2a7a7b4466d576435
 p <- rbind(segments %>%
              group_by(.id,inMask,state)%>%
              dplyr::summarise(n=n()) %>%
@@ -249,10 +262,16 @@ ggsave(p,filename = file.path("/media/DATA/Maarten/OneDrive/Documents/Manuscript
 ggsave(p,filename = file.path("/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/","WT_MM_mean_fraction_segments.png"))
 
 
-
+#plot fraction of tracklets
 plot_data <- segs_nest %>%
   dplyr::filter(condition=="WT MMC"&D_ML>0) 
 
+<<<<<<< HEAD
+plot_data <- segs_nest %>%
+  dplyr::filter(condition=="WT MMC"&D_ML>0) 
+
+=======
+>>>>>>> d0489fe33dd544f3c894d8d2a7a7b4466d576435
 p <- rbind(plot_data %>%
         group_by(.id,trackletInMask,state)%>%
         dplyr::summarise(n=n_distinct(tracklet)) %>%
@@ -278,26 +297,33 @@ p <- rbind(plot_data %>%
 
 p
 
-trackletInMask
 
 ggsave(p,filename = file.path("/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/","WT_MMC_mean_fraction_tracklets.pdf"))
 ggsave(p,filename = file.path("/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/","WT_MM_mean_fraction_tracklets.png"))
 
 
 p <- rbind(plot_data %>%
+<<<<<<< HEAD
         group_by(.id,trackInMask,state)%>%
+=======
+        group_by(.id,trackletInMask,state)%>%
+>>>>>>> d0489fe33dd544f3c894d8d2a7a7b4466d576435
         dplyr::summarise(n=n_distinct(tracklet)) %>%
-        group_by(.id,trackInMask) %>%
+        group_by(.id,trackletInMask) %>%
         dplyr:: mutate(fraction=n/sum(n))%>%
-        dplyr::mutate(labels=paste0(c("outside","inside")[trackInMask+1],"_",c("fast","slow",'immobile')[state+1]))%>%
+        dplyr::mutate(labels=paste0(c("outside","inside")[trackletInMask+1],"_",c("fast","slow",'immobile')[state+1]))%>%
         dplyr::mutate(labels=factor(labels,levels=c("outside_immobile","outside_slow","outside_fast","inside_immobile","inside_slow","inside_fast")))%>%
         group_by(labels),
       plot_data%>%
+<<<<<<< HEAD
          group_by(.id,trackInMask_gt1,state)%>%
+=======
+         group_by(.id,trackletInMask_gt1,state)%>%
+>>>>>>> d0489fe33dd544f3c894d8d2a7a7b4466d576435
          dplyr::summarise(n=n_distinct(tracklet)) %>%
-         group_by(.id,trackInMask_gt1) %>%
+         group_by(.id,trackletInMask_gt1) %>%
          dplyr::mutate(fraction=n/sum(n))%>%
-         dplyr::mutate(labels=paste0(c("outside_GT","inside_GT")[trackInMask_gt1+1],"_",c("fast","slow",'immobile')[state+1]))%>%
+         dplyr::mutate(labels=paste0(c("outside_GT","inside_GT")[trackletInMask_gt1+1],"_",c("fast","slow",'immobile')[state+1]))%>%
          dplyr::mutate(labels=factor(labels,levels=c("outside_GT_immobile","outside_GT_slow","outside_GT_fast","inside_GT_immobile","inside_GT_slow","inside_GT_fast")))%>%
          group_by(labels)) %>%
         dplyr::filter(labels!="outside_GT_immobile"&labels!="outside_GT_slow"&labels!="outside_GT_fast")%>%
@@ -315,6 +341,10 @@ add_pval(p, pairs = list(c(1, 4),c(4,7)), test='wilcox.test')
 
 library(ggbeeswarm)
   library(ggpval)
+<<<<<<< HEAD
+=======
+  library(ggsignif)
+>>>>>>> d0489fe33dd544f3c894d8d2a7a7b4466d576435
   
 p <- segs_nest %>%
   filter(condition=="WT MMC")%>%
@@ -323,11 +353,21 @@ p <- segs_nest %>%
   melt(id.vars="cellID",measure.vars=c("data","random"))%>%
   ggplot(aes(y=value,x=variable,fill=variable))+ geom_boxplot(outlier.shape = NA,notch = T)+geom_quasirandom()+ylim(0,0.3)+
   scale_colour_Publication()+scale_fill_Publication()+theme_Publication(base_size=8)+ theme(legend.position = "none")+
+<<<<<<< HEAD
   xlab("")+ylab("fraction localizations inside mask")
 
 p
 
 
+=======
+  xlab("")+ylab("fraction localizations inside mask")+ 
+geom_signif(comparisons = list(c("data", "random")), 
+            map_signif_level=F,     y_position = c(0.25))
+p
+
+
+p %>% group_by(variable) %>% dplyr::summarize(mean(value))
+>>>>>>> d0489fe33dd544f3c894d8d2a7a7b4466d576435
 
 ggsave(p,filename = "/media/DATA/Maarten/OneDrive/Documents/Manuscripts/in preparation - MFM BRCA2 tracking/Figure 2/fraction_localizations_inside.pdf",width = 10,height = 10,units = "cm")
 
@@ -340,6 +380,10 @@ stats <- segs_nest %>%
   dplyr::summarize(x=mean(value)) %>%
   group_by(variable)%>%
   dplyr::summarize(out=mean(x))
+
+stats$out[1]/stats$out[2]
+
+
 
 
 # angle plots -------------------------------------------------------------
@@ -356,7 +400,11 @@ scale_colour_Publication <- function(...){
   
 }
 inputdata <- segs_nest %>%
+<<<<<<< HEAD
   dplyr::filter(displacement1>0.1,angle1>0,state<2,condition=="dDBD MMC")
+=======
+  dplyr::filter(displacement1>0.1,angle1>0,state!=2,condition=="WT untreated")
+>>>>>>> d0489fe33dd544f3c894d8d2a7a7b4466d576435
 p <-inputdata %>%
   dplyr::mutate(angle1=360-angle1)%>%
   rbind(inputdata)%>%
